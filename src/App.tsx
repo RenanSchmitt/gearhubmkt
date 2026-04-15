@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+// Mudança aqui: importando HashRouter em vez de BrowserRouter
+import { HashRouter as Router, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { StoreProvider } from "@/hooks/useStore";
@@ -23,7 +24,8 @@ const App = () => (
     <TooltipProvider>
       <StoreProvider>
         <Sonner />
-        <BrowserRouter>
+        {/* Usando Router (HashRouter) para compatibilidade com GitHub Pages */}
+        <Router>
           <div className="mx-auto max-w-md min-h-screen relative">
             <Routes>
               <Route path="/" element={<HomePage />} />
@@ -41,7 +43,7 @@ const App = () => (
             </Routes>
             <BottomNav />
           </div>
-        </BrowserRouter>
+        </Router>
       </StoreProvider>
     </TooltipProvider>
   </QueryClientProvider>
