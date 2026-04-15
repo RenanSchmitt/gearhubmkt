@@ -1,0 +1,16 @@
+
+GEARHUB UI KIT
+
+Colors:
+#39FF14 - Primary Green
+#0A0E18 - Background
+#F0F0F0 - Text
+
+Font:
+Inter / Poppins
+
+Style:
+- Dark UI
+- Neon accents
+- Rounded corners (12-16px)
+- Strong contrast
