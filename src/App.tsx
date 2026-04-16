@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { HashRouter as Router, Route, Routes } from "react-router-dom"; // Trocamos para HashRouter
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { StoreProvider } from "@/hooks/useStore";
@@ -8,7 +8,7 @@ import HomePage from "./pages/HomePage";
 import ProductDetail from "./pages/ProductDetail";
 import FavoritesPage from "./pages/FavoritesPage";
 import AdvertisePage from "./pages/AdvertisePage";
-import EditAdvertisePage from "./pages/EditAdvertisePage"; // 1. IMPORTA A NOVA PÁGINA
+import EditAdvertisePage from "./pages/EditAdvertisePage"; 
 import ChatPage from "./pages/ChatPage";
 import ProfilePage from "./pages/ProfilePage";
 import PremiumPage from "./pages/PremiumPage";
@@ -25,7 +25,8 @@ const App = () => (
       <StoreProvider>
         <Sonner position="top-center" expand={false} richColors />
         
-        <BrowserRouter basename="/gearhubmkt">
+        {/* Removemos o basename e usamos o Router (HashRouter) */}
+        <Router>
           <div className="mx-auto max-w-md min-h-screen relative bg-black">
             <Routes>
               {/* Rotas Principais */}
@@ -34,7 +35,7 @@ const App = () => (
               <Route path="/favoritos" element={<FavoritesPage />} />
               <Route path="/anunciar" element={<AdvertisePage />} />
               
-              {/* 2. ADICIONA A ROTA DE EDIÇÃO COM O PARÂMETRO :id */}
+              {/* Rota de Edição */}
               <Route path="/editar-anuncio/:id" element={<EditAdvertisePage />} />
               
               {/* Rotas de Chat */}
@@ -55,7 +56,7 @@ const App = () => (
             {/* Navegação Inferior Fixa */}
             <BottomNav />
           </div>
-        </BrowserRouter>
+        </Router>
       </StoreProvider>
     </TooltipProvider>
   </QueryClientProvider>
