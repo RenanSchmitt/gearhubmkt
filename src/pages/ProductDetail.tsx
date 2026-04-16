@@ -1,6 +1,6 @@
 import {
   ArrowLeft, Star, MessageCircle, Share2, Heart, ShieldCheck, Zap,
-  Truck, Bell, Edit3, Loader2, Package, Eye, Trash2
+  Truck, Bell, Edit3, Loader2, Package, Eye, Trash2, Crown
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useStore } from "@/hooks/useStore";
@@ -29,10 +29,8 @@ const ProductDetail = () => {
     try {
       setDeleteLoading(true);
 
-      // 1. LIMPAR A FOTO NO STORAGE (Com extração limpa do nome)
       if (product.image && !product.image.includes('unsplash')) {
         const urlParts = product.image.split('/');
-        // Pega a última parte da URL e remove parâmetros como ?t=123...
         let fileName = urlParts[urlParts.length - 1].split('?')[0];
         
         if (fileName) {
@@ -44,7 +42,6 @@ const ProductDetail = () => {
         }
       }
 
-      // 2. LIMPAR MENSAGENS E CHATS
       const { error: msgError } = await supabase
         .from('messages')
         .delete()
@@ -52,7 +49,6 @@ const ProductDetail = () => {
 
       if (msgError) console.error("Aviso: Falha ao limpar mensagens:", msgError);
 
-      // 3. EXCLUIR O PRODUTO NO BANCO
       const { error: productError } = await supabase
         .from("products")
         .delete()
@@ -113,12 +109,16 @@ const ProductDetail = () => {
           sellerInfo = sellerData;
         }
 
+        // Verifica se o status é 'pro' na tabela profiles
+        const isSellerPro = sellerInfo?.account_status?.toLowerCase() === 'pro';
+
         setProduct({
           ...productData,
           sellerId: String(productData.seller_id),
           sellerName: sellerInfo?.nome || sellerInfo?.name || sellerInfo?.username || "Piloto GearHub",
           sellerRating: sellerInfo?.rating || "5.0",
           sellerSales: sellerInfo?.sales || "0",
+          isSellerPro: isSellerPro, // Nova flag de verificação
           title: productData.title || "Peça sem título",
           price: Number(productData.price) || 0,
           image: productData.image || "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=800&q=80",
@@ -157,10 +157,20 @@ const ProductDetail = () => {
 
   return (
     <div className="min-h-screen bg-black pb-40 text-white font-sans">
+      {/* HEADER FIXO */}
       <div className="fixed left-0 right-0 top-0 z-50 flex items-center justify-between px-4 pt-4">
         <button onClick={() => navigate(-1)} className="flex h-11 w-11 items-center justify-center rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 active:scale-95 transition-all">
           <ArrowLeft size={20} />
         </button>
+
+        {/* Badge PRO no Header */}
+        {product.isSellerPro && (
+          <div className="flex items-center gap-1.5 bg-[#ccff00] px-3 py-1.5 rounded-full shadow-[0_0_20px_rgba(204,255,0,0.3)] animate-pulse">
+            <Crown size={12} className="text-black fill-black" />
+            <span className="text-[10px] font-black text-black uppercase italic tracking-wider">Vendedor Pro</span>
+          </div>
+        )}
+
         <button className="flex h-11 w-11 items-center justify-center rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 active:scale-95">
           <Share2 size={18} />
         </button>
@@ -171,13 +181,23 @@ const ProductDetail = () => {
       </div>
 
       <div className="relative -mt-10 rounded-t-[40px] bg-black px-6 pt-10 space-y-8 border-t border-[#ccff00]/10 shadow-[0_-30px_60px_rgba(0,0,0,0.9)]">
+        
+        {/* TITULO E PREÇO */}
         <div className="space-y-4">
           <div className="flex items-start justify-between gap-4">
-            <h1 className="text-2xl font-black uppercase italic leading-[1.1] tracking-tighter">
-              {product.title}
-            </h1>
-            {product.is_pro && (
-              <span className="shrink-0 rounded-lg bg-[#ccff00]/10 border border-[#ccff00]/20 px-2.5 py-1 text-[10px] font-black text-[#ccff00]">PRO</span>
+            <div className="space-y-1">
+              {product.isSellerPro && (
+                <span className="text-[10px] font-black text-[#ccff00] uppercase tracking-[0.2em] italic">Anúncio Verificado</span>
+              )}
+              <h1 className="text-2xl font-black uppercase italic leading-[1.1] tracking-tighter">
+                {product.title}
+              </h1>
+            </div>
+            {/* Badge sutil ao lado do título */}
+            {product.isSellerPro && (
+              <div className="bg-[#ccff00]/10 border border-[#ccff00]/20 p-2 rounded-xl">
+                <ShieldCheck size={20} className="text-[#ccff00]" />
+              </div>
             )}
           </div>
           <div className="flex items-baseline gap-2">
@@ -188,6 +208,7 @@ const ProductDetail = () => {
           </div>
         </div>
 
+        {/* GRID INFO */}
         <div className="grid grid-cols-2 gap-3">
           <div className="flex items-center gap-3 rounded-[22px] bg-zinc-900/50 border border-white/5 p-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-800 text-[#ccff00]"><Package size={20} /></div>
@@ -213,6 +234,7 @@ const ProductDetail = () => {
           </div>
         </div>
 
+        {/* COMPATIBILIDADE */}
         <div className="space-y-4">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Compatibilidade</h2>
@@ -238,14 +260,15 @@ const ProductDetail = () => {
           </div>
         </div>
 
+        {/* DESCRIÇÃO */}
         <div className="space-y-3">
           <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">Descrição Técnica</h2>
-          <p className="text-[15px] leading-relaxed text-zinc-400 font-medium bg-zinc-900/30 p-4 rounded-2xl border border-white/5 whitespace-pre-wrap">
+          <div className="text-[15px] leading-relaxed text-zinc-400 font-medium bg-zinc-900/30 p-4 rounded-2xl border border-white/5 whitespace-pre-wrap">
             {product.description}
-          </p>
+          </div>
         </div>
 
-        {/* AÇÕES DO DONO (EDITAR/IMPULSIONAR/REMOVER) */}
+        {/* AÇÕES DO DONO */}
         <div className="space-y-4 pt-4">
           {isOwner && (
             <div className="flex flex-col gap-3">
@@ -280,13 +303,17 @@ const ProductDetail = () => {
           )}
         </div>
 
+        {/* CARD DO VENDEDOR */}
         {!isOwner && (
-          <div className="flex w-full items-center gap-4 rounded-[32px] bg-zinc-900 p-6 border border-white/5">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#ccff00] text-black font-black text-xl italic">
+          <div className={`flex w-full items-center gap-4 rounded-[32px] bg-zinc-900 p-6 border transition-all ${product.isSellerPro ? 'border-[#ccff00]/30 shadow-[0_0_30px_rgba(204,255,0,0.05)]' : 'border-white/5'}`}>
+            <div className={`flex h-14 w-14 items-center justify-center rounded-2xl font-black text-xl italic ${product.isSellerPro ? 'bg-[#ccff00] text-black shadow-[0_0_15px_rgba(204,255,0,0.3)]' : 'bg-zinc-800 text-white'}`}>
               {product.sellerName.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1">
-              <p className="text-[16px] font-black text-white uppercase italic tracking-tight">{product.sellerName}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-[16px] font-black text-white uppercase italic tracking-tight">{product.sellerName}</p>
+                {product.isSellerPro && <Crown size={14} className="text-[#ccff00] fill-[#ccff00]" />}
+              </div>
               <div className="flex items-center gap-3 mt-1.5">
                 <div className="flex items-center gap-1 bg-black/50 px-2.5 py-1 rounded-lg border border-white/5 text-[#ccff00]">
                   <Star size={12} className="fill-[#ccff00]" />
@@ -299,6 +326,7 @@ const ProductDetail = () => {
         )}
       </div>
 
+      {/* BARRA DE AÇÃO INFERIOR */}
       {!isOwner && (
         <div className="fixed bottom-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-2xl border-t border-white/5 px-6 pb-10 pt-5">
           <div className="mx-auto flex max-w-md gap-4">
