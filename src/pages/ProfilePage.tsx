@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import { Star, MapPin, Settings, ChevronRight, LogOut, Crown, Zap, Eye, Heart, MousePointer, User as UserIcon, Loader2, Package } from "lucide-react";
+import { 
+  Star, MapPin, Settings, ChevronRight, LogOut, Crown, 
+  Zap, Eye, Heart, MousePointer, Loader2, ShieldCheck 
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import ProductCard from "@/components/ProductCard";
@@ -12,40 +15,51 @@ const ProfilePage = () => {
 
   useEffect(() => {
     const getProfileData = async () => {
-      setLoading(true);
-      
-      // 1. Pega o usuário logado
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      
-      if (authUser) {
-        setUser({
-          id: authUser.id,
-          name: authUser.email?.split('@')[0].toUpperCase() || "PILOTO",
-          email: authUser.email,
-          location: "Brasil",
-          description: "Membro GearHub Performance",
-          rating: 5.0,
-          sales: 0,
-          isPro: false 
-        });
+      try {
+        setLoading(true);
+        
+        // 1. Pega o usuário autenticado
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        
+        if (authUser) {
+          // 2. Busca dados da tabela 'profiles' usando os campos reais do seu banco
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", authUser.id)
+            .single();
 
-        // 2. BUSCA OS ANÚNCIOS (Filtra pelo seller_id que gravamos no criar anúncio)
-        const { data: productsData, error } = await supabase
-          .from("products")
-          .select("*")
-          .eq("seller_id", authUser.id) // Garanta que a coluna no Supabase chama 'seller_id'
-          .order('created_at', { ascending: false });
+          // Verifica o status baseado na sua coluna 'account_status'
+          const isProUser = profileData?.account_status?.toLowerCase() === 'pro';
 
-        if (error) {
-          console.error("Erro ao buscar produtos:", error);
+          setUser({
+            id: authUser.id,
+            name: profileData?.nome || authUser.email?.split('@')[0].toUpperCase(),
+            email: authUser.email,
+            location: profileData?.cidade ? `${profileData.cidade}, ${profileData.estado}` : "Brasil",
+            description: profileData?.bio || "Membro GearHub Performance",
+            rating: profileData?.rating || 5.0,
+            sales: profileData?.sales || 0,
+            isPro: isProUser 
+          });
+
+          // 3. Busca os anúncios do usuário
+          const { data: productsData, error } = await supabase
+            .from("products")
+            .select("*")
+            .eq("seller_id", authUser.id)
+            .order('created_at', { ascending: false });
+
+          if (!error) setUserProducts(productsData || []);
+          
         } else {
-          console.log("Seus anúncios encontrados:", productsData);
-          setUserProducts(productsData || []);
+          navigate("/login");
         }
-      } else {
-        navigate("/login");
+      } catch (err) {
+        console.error("Erro ao carregar perfil:", err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     getProfileData();
@@ -56,7 +70,7 @@ const ProfilePage = () => {
     navigate("/login");
   };
 
-  // Métricas baseadas no que veio do banco
+  // Cálculos de métricas
   const totalViews = userProducts.reduce((s, p) => s + (p.views || 0), 0);
   const totalFavs = userProducts.reduce((s, p) => s + (p.fav_count || 0), 0);
   const totalClicks = userProducts.reduce((s, p) => s + (p.clicks || 0), 0);
@@ -73,7 +87,21 @@ const ProfilePage = () => {
       <div className="px-5 pt-8 flex justify-between items-center mb-6">
         <div>
           <p className="text-[10px] font-bold text-zinc-500 tracking-[0.3em] uppercase">Minha conta</p>
-          <h1 className="text-2xl font-black italic text-[#ccff00] tracking-tighter uppercase">Perfil</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-black italic text-[#ccff00] tracking-tighter uppercase">Perfil</h1>
+            
+            {/* Badge Dinâmica baseada no account_status */}
+            {user?.isPro ? (
+              <div className="flex items-center gap-1 bg-[#ccff00]/10 border border-[#ccff00]/20 px-2 py-0.5 rounded-lg shadow-[0_0_15px_rgba(204,255,0,0.1)]">
+                <Crown size={10} className="text-[#ccff00] fill-[#ccff00]" />
+                <span className="text-[9px] font-black text-[#ccff00] uppercase italic tracking-widest">PRO PLAN</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 bg-zinc-800/50 border border-zinc-700/50 px-2 py-0.5 rounded-lg">
+                <span className="text-[9px] font-bold text-zinc-500 uppercase italic tracking-widest">Standard</span>
+              </div>
+            )}
+          </div>
         </div>
         <button className="h-10 w-10 bg-zinc-900 rounded-xl flex items-center justify-center border border-zinc-800 active:scale-95 transition-all">
           <Settings size={18} />
@@ -82,13 +110,23 @@ const ProfilePage = () => {
 
       {/* Card de Perfil */}
       <div className="px-5 mb-6">
-        <div className="bg-zinc-900 rounded-[32px] p-6 border border-zinc-800/50 shadow-2xl">
+        <div className="bg-zinc-900 rounded-[32px] p-6 border border-zinc-800/50 shadow-2xl relative overflow-hidden">
+          {/* Decoração sutil para usuários PRO */}
+          {user?.isPro && (
+            <div className="absolute -right-4 -top-4 opacity-[0.03] pointer-events-none">
+              <Crown size={140} className="rotate-12 text-[#ccff00]" />
+            </div>
+          )}
+
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#ccff00] text-black text-xl font-black italic shadow-[0_0_20px_rgba(204,255,0,0.3)]">
-              {user?.name?.substring(0, 2)}
+            <div className={`flex h-16 w-16 items-center justify-center rounded-2xl text-black text-xl font-black italic shadow-2xl transition-all ${user?.isPro ? 'bg-[#ccff00] shadow-[#ccff00]/20' : 'bg-white'}`}>
+              {user?.name?.substring(0, 2).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-[17px] font-black italic uppercase tracking-tight">{user?.name}</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-[17px] font-black italic uppercase tracking-tight truncate">{user?.name}</h2>
+                {user?.isPro && <ShieldCheck size={16} className="text-[#ccff00]" />}
+              </div>
               <div className="flex items-center gap-1.5 mt-0.5 text-zinc-500">
                 <MapPin size={11} className="text-[#ccff00]" />
                 <span className="text-[11px] font-bold uppercase tracking-wider">{user?.location}</span>
@@ -107,10 +145,10 @@ const ProfilePage = () => {
         </div>
       </div>
 
-      {/* Métricas */}
+      {/* Seção de Métricas */}
       {userProducts.length > 0 && (
         <div className="px-5 mb-8">
-          <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-3 ml-1 uppercase">📊 Métricas do Hub</h2>
+          <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-3 ml-1">📊 Desempenho no Hub</h2>
           <div className="grid grid-cols-3 gap-2">
             {[
               { icon: Eye, label: "Views", value: totalViews },
@@ -127,26 +165,25 @@ const ProfilePage = () => {
         </div>
       )}
 
-      {/* Lista de Ações */}
+      {/* Menu de Opções */}
       <div className="px-5 mb-8">
         <div className="rounded-[28px] bg-zinc-900 border border-zinc-800/50 divide-y divide-zinc-800/50 overflow-hidden shadow-xl">
           <button onClick={() => navigate("/favoritos")} className="flex w-full items-center justify-between px-5 py-4 active:bg-zinc-800 transition-colors">
             <span className="text-[13px] font-bold text-white uppercase tracking-tight">Meus favoritos</span>
             <ChevronRight size={16} className="text-zinc-700" />
           </button>
-          <button onClick={() => navigate("/procurar-peca")} className="flex w-full items-center justify-between px-5 py-4 active:bg-zinc-800 transition-colors">
-            <span className="text-[13px] font-bold text-white uppercase tracking-tight">Procurar peça</span>
-            <ChevronRight size={16} className="text-zinc-700" />
-          </button>
+          
+          {/* Mostrar Upgrade apenas para quem não é PRO */}
           {!user?.isPro && (
-            <button onClick={() => navigate("/premium")} className="flex w-full items-center justify-between px-5 py-4 active:bg-zinc-800 transition-colors">
+            <button onClick={() => navigate("/premium")} className="flex w-full items-center justify-between px-5 py-4 bg-[#ccff00]/5 active:bg-[#ccff00]/10 transition-colors">
               <div className="flex items-center gap-3">
                 <Crown size={16} className="text-[#ccff00]" />
-                <span className="text-[13px] font-bold text-[#ccff00] uppercase italic">Seja Premium</span>
+                <span className="text-[13px] font-black text-[#ccff00] uppercase italic tracking-wider">Upgrade para Pro</span>
               </div>
               <ChevronRight size={16} className="text-[#ccff00]" />
             </button>
           )}
+
           <button onClick={handleLogout} className="flex w-full items-center justify-between px-5 py-4 bg-red-500/5 active:bg-red-500/10 transition-colors">
             <span className="text-[13px] font-black text-red-500 uppercase tracking-widest">Sair da conta</span>
             <LogOut size={15} className="text-red-500" />
@@ -154,7 +191,7 @@ const ProfilePage = () => {
         </div>
       </div>
 
-      {/* Seção de Anúncios */}
+      {/* Listagem de Anúncios */}
       <div className="px-5">
         <div className="flex items-center justify-between mb-4 px-1">
           <h2 className="text-[16px] font-black italic uppercase text-white tracking-tighter">Meus Anúncios</h2>
