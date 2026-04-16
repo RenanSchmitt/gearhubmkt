@@ -7,6 +7,8 @@ on:
 jobs:
   build-android:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -14,7 +16,7 @@ jobs:
       - name: Configurar Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
 
       - name: Instalar e Buildar Web
@@ -28,10 +30,11 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Preparar Android
+      - name: Inicializar e Sincronizar Capacitor
         run: |
-          # Adiciona a plataforma apenas se necessário e sincroniza os arquivos do Vite
-          npx cap add android || true
+          # Cria a configuração do zero para não dar erro de conflito
+          npx cap init GearHub com.gearhub.app --web-dir dist
+          npx cap add android
           npx cap sync android
 
       - name: Compilar APK (Gradle)
@@ -43,5 +46,5 @@ jobs:
       - name: Disponibilizar APK
         uses: actions/upload-artifact@v4
         with:
-          name: gearhub-debug-apk
+          name: gearhub-github-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
