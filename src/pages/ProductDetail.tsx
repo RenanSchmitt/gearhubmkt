@@ -220,19 +220,29 @@ const ProductDetail = () => {
         </div>
 
         {/* AÇÕES DO DONO (EDITAR/IMPULSIONAR) */}
-        <div className="space-y-4 pt-4">
-          {isOwner && (
-            <div className="flex flex-col gap-3">
-              <button onClick={() => { boostProduct(product.id); toast.success("⚡ Turbo ativado!"); }} className="flex w-full items-center justify-center gap-3 rounded-[24px] bg-[#ccff00] py-5 shadow-[0_15px_35px_rgba(204,255,0,0.2)] active:scale-[0.98]">
-                <Zap size={20} className="text-black fill-black" />
-                <span className="text-[15px] font-black text-black uppercase tracking-widest italic">Impulsionar Anúncio</span>
-              </button>
-              <button className="flex w-full items-center justify-center gap-3 rounded-[24px] bg-zinc-900 py-5 border border-zinc-800 text-white text-[14px] font-black uppercase tracking-widest">
-                <Edit3 size={18} className="text-[#ccff00]" /> Editar Detalhes
-              </button>
-            </div>
-          )}
-        </div>
+<div className="space-y-4 pt-4">
+  {isOwner && (
+    <div className="flex flex-col gap-3">
+      {/* Botão de Impulsionar */}
+      <button 
+        onClick={() => { boostProduct(product.id); toast.success("⚡ Turbo ativado!"); }} 
+        className="flex w-full items-center justify-center gap-3 rounded-[24px] bg-[#ccff00] py-5 shadow-[0_15px_35px_rgba(204,255,0,0.2)] active:scale-[0.98] transition-transform"
+      >
+        <Zap size={20} className="text-black fill-black" />
+        <span className="text-[15px] font-black text-black uppercase tracking-widest italic">Impulsionar Anúncio</span>
+      </button>
+
+      {/* Botão de Editar - AGORA FUNCIONAL */}
+      <button 
+        onClick={() => navigate(`/editar-anuncio/${product.id}`)}
+        className="flex w-full items-center justify-center gap-3 rounded-[24px] bg-zinc-900 py-5 border border-zinc-800 text-white text-[14px] font-black uppercase tracking-widest active:scale-[0.98] transition-transform"
+      >
+        <Edit3 size={18} className="text-[#ccff00]" /> 
+        Editar Detalhes
+      </button>
+    </div>
+  )}
+</div>
 
         {/* CARD DO VENDEDOR */}
         {!isOwner && (

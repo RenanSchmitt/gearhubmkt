@@ -8,6 +8,7 @@ import HomePage from "./pages/HomePage";
 import ProductDetail from "./pages/ProductDetail";
 import FavoritesPage from "./pages/FavoritesPage";
 import AdvertisePage from "./pages/AdvertisePage";
+import EditAdvertisePage from "./pages/EditAdvertisePage"; // 1. IMPORTA A NOVA PÁGINA
 import ChatPage from "./pages/ChatPage";
 import ProfilePage from "./pages/ProfilePage";
 import PremiumPage from "./pages/PremiumPage";
@@ -24,7 +25,6 @@ const App = () => (
       <StoreProvider>
         <Sonner position="top-center" expand={false} richColors />
         
-        {/* Configuração do Router com o basename solicitado */}
         <BrowserRouter basename="/gearhubmkt">
           <div className="mx-auto max-w-md min-h-screen relative bg-black">
             <Routes>
@@ -34,7 +34,10 @@ const App = () => (
               <Route path="/favoritos" element={<FavoritesPage />} />
               <Route path="/anunciar" element={<AdvertisePage />} />
               
-              {/* Rotas de Chat (O ChatPage gerencia a troca de lista para conversa) */}
+              {/* 2. ADICIONA A ROTA DE EDIÇÃO COM O PARÂMETRO :id */}
+              <Route path="/editar-anuncio/:id" element={<EditAdvertisePage />} />
+              
+              {/* Rotas de Chat */}
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/chat/:threadId" element={<ChatPage />} />
               
