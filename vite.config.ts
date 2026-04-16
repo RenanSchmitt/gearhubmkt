@@ -4,8 +4,10 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 export default defineConfig(({ mode }) => ({
-  // ESSA LINHA É OBRIGATÓRIA para o visual carregar no GitHub Pages
-  base: "/gearhubmkt/",
+  // AJUSTE AQUI: Se for para o build (produção), usamos './' para o Android não dar tela branca.
+  // Isso também funciona no GitHub Pages na maioria dos casos.
+  base: mode === 'production' ? './' : '/',
+  
   server: {
     host: "::",
     port: 8080,
@@ -13,11 +15,21 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [
+    react(), 
+    mode === "development" && componentTagger()
+  ].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
-    dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core"],
+    dedupe: [
+      "react", 
+      "react-dom", 
+      "react/jsx-runtime", 
+      "react/jsx-dev-runtime", 
+      "@tanstack/react-query", 
+      "@tanstack/query-core"
+    ],
   },
 }));

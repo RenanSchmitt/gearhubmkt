@@ -1,4 +1,4 @@
-name: Gerar APK GearHub
+name: Gerar APK GearHub Profissional
 
 on:
   push:
@@ -19,31 +19,42 @@ jobs:
           node-version: 24
           cache: 'npm'
 
-      - name: Instalar e Buildar Web
+      - name: Instalar Dependências
         run: |
           npm install
-          npm run build
+          # Instala a ferramenta que gera os ícones automaticamente
+          npm install @capacitor/assets --save-dev
 
-      - name: Configurar Java
+      - name: Build do Projeto (Vite)
+        run: npm run build
+
+      - name: Configurar Java 21
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: '21' # Atualizado de 17 para 21
+          java-version: '21'
 
-      - name: Inicializar e Sincronizar Capacitor
+      - name: Configurar Capacitor e Android
         run: |
+          # Inicializa a config garantindo o diretório 'dist'
           npx cap init GearHub com.gearhub.app --web-dir dist
           npx cap add android || true
+          
+          # COMANDO MÁGICO: Pega a imagem de resources/icon.png e cria os ícones
+          # Se der erro aqui, o build continua para não travar
+          npx capacitor-assets generate --android || echo "Ícone não encontrado, usando padrão"
+          
+          # Sincroniza os arquivos do Vite (dist) para dentro do Android
           npx cap sync android
 
-      - name: Compilar APK (Gradle)
+      - name: Compilar APK Final
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Disponibilizar APK
+      - name: Download do APK Pronto
         uses: actions/upload-artifact@v4
         with:
-          name: gearhub-github-apk
+          name: GearHub-V1-Final
           path: android/app/build/outputs/apk/debug/app-debug.apk
