@@ -28,13 +28,12 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: '17'
+          java-version: '21' # Atualizado de 17 para 21
 
       - name: Inicializar e Sincronizar Capacitor
         run: |
-          # Cria a configuração do zero para não dar erro de conflito
           npx cap init GearHub com.gearhub.app --web-dir dist
-          npx cap add android
+          npx cap add android || true
           npx cap sync android
 
       - name: Compilar APK (Gradle)
