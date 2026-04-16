@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { ArrowLeft, Send, CheckCheck, Loader2, MessageSquare } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 // --- COMPONENTE DA CONVERSA (CHAT ABERTO) ---
 const ChatView = ({ threadId }: { threadId: string }) => {
@@ -19,8 +20,14 @@ const ChatView = ({ threadId }: { threadId: string }) => {
     const initChat = async () => {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       setUser(authUser);
-      const { data } = await supabase.from("messages").select("*").eq("thread_id", threadId).order("created_at", { ascending: true });
-      setMessages(data || []);
+      if (authUser) {
+        const { data } = await supabase
+          .from("messages")
+          .select("*")
+          .eq("thread_id", threadId)
+          .order("created_at", { ascending: true });
+        setMessages(data || []);
+      }
       setLoading(false);
     };
     initChat();
@@ -28,8 +35,12 @@ const ChatView = ({ threadId }: { threadId: string }) => {
 
   useEffect(() => {
     const channel = supabase.channel(`chat_${threadId}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `thread_id=eq.${threadId}` }, 
-      (payload) => {
+      .on("postgres_changes", { 
+        event: "INSERT", 
+        schema: "public", 
+        table: "messages", 
+        filter: `thread_id=eq.${threadId}` 
+      }, (payload) => {
         setMessages((prev) => prev.find(m => m.id === payload.new.id) ? prev : [...prev, payload.new]);
       }).subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -42,23 +53,45 @@ const ChatView = ({ threadId }: { threadId: string }) => {
     if (!newMessage.trim() || !user) return;
     
     const threadParts = threadId.split('_');
+    const productId = threadParts[0];
     const buyerId = threadParts[threadParts.length - 1];
-    let targetId = user.id === buyerId ? location.state?.sellerId : buyerId;
+
+    // Lógica para garantir o receiver_id (quem recebe a mensagem)
+    let targetId = location.state?.sellerId;
+
+    if (!targetId || targetId === user.id) {
+      const { data: product } = await supabase
+        .from("products")
+        .select("seller_id")
+        .eq("id", productId)
+        .single();
+
+      if (product) {
+        targetId = user.id === buyerId ? product.seller_id : buyerId;
+      }
+    }
 
     if (!targetId) {
-      const otherMsg = messages.find(m => m.sender_id !== user.id);
-      targetId = otherMsg?.sender_id;
+      const lastOtherMsg = messages.find(m => m.sender_id !== user.id);
+      targetId = lastOtherMsg?.sender_id;
     }
 
     const { error } = await supabase.from("messages").insert({
-      text: newMessage, sender_id: user.id, receiver_id: targetId, thread_id: threadId,
+      text: newMessage, 
+      sender_id: user.id, 
+      receiver_id: targetId, 
+      thread_id: threadId,
     });
-    if (!error) setNewMessage("");
+
+    if (!error) {
+      setNewMessage("");
+    } else {
+      toast.error("Erro ao enviar: " + error.message);
+    }
   };
 
   return (
     <div className="flex min-h-screen flex-col bg-black text-white pb-24">
-      {/* HEADER DO CHAT */}
       <div className="sticky top-0 z-40 bg-zinc-900/80 backdrop-blur-xl border-b border-white/5 px-4 py-4 flex items-center gap-3">
         <button onClick={() => navigate("/chat")} className="h-10 w-10 flex items-center justify-center rounded-full bg-zinc-800 border border-white/5 active:scale-90 transition-transform">
           <ArrowLeft size={18} />
@@ -72,7 +105,6 @@ const ChatView = ({ threadId }: { threadId: string }) => {
         </div>
       </div>
       
-      {/* MENSAGENS */}
       <div className="flex-1 px-4 py-6 space-y-6 overflow-y-auto">
         {messages.map((msg) => {
           const isMe = msg.sender_id === user?.id;
@@ -91,7 +123,6 @@ const ChatView = ({ threadId }: { threadId: string }) => {
         <div ref={scrollRef} />
       </div>
 
-      {/* INPUT FIXO */}
       <div className="fixed bottom-[72px] left-0 right-0 z-50 bg-black/90 backdrop-blur-md px-4 py-4 border-t border-white/5">
         <form onSubmit={handleSendMessage} className="mx-auto flex max-w-md items-center gap-3">
           <input value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="MENSAGEM..." className="flex-1 rounded-[20px] bg-zinc-900 border border-white/5 py-4 px-6 text-[12px] font-bold text-white outline-none focus:border-[#ccff00]/30 transition-all uppercase italic" />
@@ -112,52 +143,48 @@ const ChatList = () => {
   const [loading, setLoading] = useState(true);
 
   const fetchThreads = async () => {
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (!authUser) return;
-    setCurrentUser(authUser);
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) return;
+      setCurrentUser(authUser);
 
-    const { data: msgs } = await supabase.from("messages")
-      .select("*")
-      .or(`sender_id.eq.${authUser.id},receiver_id.eq.${authUser.id}`)
-      .order('created_at', { ascending: false });
+      const { data: msgs, error: msgError } = await supabase.from("messages")
+        .select("*")
+        .or(`sender_id.eq.${authUser.id},receiver_id.eq.${authUser.id}`)
+        .order('created_at', { ascending: false });
 
-    if (msgs) {
-      const uniqueThreads = msgs.reduce((acc: any[], current) => {
-        if (!acc.find(item => item.thread_id === current.thread_id)) acc.push(current);
-        return acc;
-      }, []);
+      if (msgError) throw msgError;
 
-      const updatedThreads = await Promise.all(uniqueThreads.map(async (t) => {
-        // Lógica fundamental: O nome exibido é sempre da "OUTRA" pessoa
-        const otherId = t.sender_id === authUser.id ? t.receiver_id : t.sender_id;
-        const productId = t.thread_id.split('_')[0];
+      if (msgs) {
+        const uniqueThreads = msgs.reduce((acc: any[], current) => {
+          if (!acc.find(item => item.thread_id === current.thread_id)) acc.push(current);
+          return acc;
+        }, []);
 
-        // Busca o nome na coluna 'nome'
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('nome')
-          .eq('id', otherId)
-          .single();
-        
-        // Busca o título do produto
-        const { data: product } = await supabase
-          .from('products')
-          .select('title') 
-          .eq('id', productId)
-          .single();
-        
-        const finalName = (profile?.nome || "USUÁRIO").toUpperCase();
-        const finalProduct = (product?.title || "PRODUTO").toUpperCase();
-        
-        return { 
-          ...t, 
-          chatDisplayName: `${finalName} - ${finalProduct}` 
-        };
-      }));
+        const updatedThreads = await Promise.all(uniqueThreads.map(async (t) => {
+          const otherId = t.sender_id === authUser.id ? t.receiver_id : t.sender_id;
+          const productId = t.thread_id.split('_')[0];
 
-      setThreads(updatedThreads);
+          // Busca segura de perfil e produto
+          const { data: profiles } = await supabase.from('profiles').select('nome').eq('id', otherId);
+          const { data: products } = await supabase.from('products').select('title').eq('id', productId);
+          
+          const profileName = profiles?.[0]?.nome || "USUÁRIO";
+          const productTitle = products?.[0]?.title || "PRODUTO";
+          
+          return { 
+            ...t, 
+            chatDisplayName: `${profileName.toUpperCase()} - ${productTitle.toUpperCase()}` 
+          };
+        }));
+
+        setThreads(updatedThreads);
+      }
+    } catch (error) {
+      console.error("Erro no Inbox:", error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => { fetchThreads(); }, []);
@@ -167,16 +194,16 @@ const ChatList = () => {
   return (
     <div className="min-h-screen bg-black text-white pb-32">
       <header className="p-6 pt-12">
-        <h1 className="text-4xl font-black italic uppercase tracking-tighter">Inbox</h1>
+        <h1 className="text-4xl font-black italic uppercase tracking-tighter text-[#ccff00]">Inbox</h1>
       </header>
       <div className="px-6 space-y-3">
         {threads.length > 0 ? threads.map((thread) => (
           <button 
             key={thread.id} 
             onClick={() => navigate(`/chat/${thread.thread_id}`, { state: { chatTitle: thread.chatDisplayName } })} 
-            className="flex w-full items-center gap-4 rounded-[28px] bg-zinc-900/40 border border-white/5 p-4 text-left active:scale-[0.98] transition-all hover:bg-zinc-800/40"
+            className="flex w-full items-center gap-4 rounded-[28px] bg-zinc-900/40 border border-white/5 p-4 text-left active:scale-[0.98] transition-all"
           >
-            <div className="h-12 w-12 rounded-[16px] bg-zinc-800 flex items-center justify-center text-[#ccff00] font-black italic">
+            <div className="h-12 w-12 rounded-[16px] bg-zinc-800 flex items-center justify-center text-[#ccff00] font-black italic border border-white/5">
                {thread.sender_id === currentUser?.id ? "OUT" : "IN"}
             </div>
             <div className="flex-1 min-w-0">
@@ -200,8 +227,26 @@ const ChatList = () => {
   );
 };
 
+// --- COMPONENTE PRINCIPAL (ROTEADOR DE CHAT) ---
 const ChatPage = () => {
   const { threadId } = useParams();
+  const navigate = useNavigate();
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate("/login", { replace: true });
+      } else {
+        setAuthLoading(false);
+      }
+    };
+    checkUser();
+  }, [navigate]);
+
+  if (authLoading) return <div className="min-h-screen bg-black" />;
+
   return threadId ? <ChatView threadId={threadId} /> : <ChatList />;
 };
 

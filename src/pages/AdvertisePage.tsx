@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Camera, ChevronDown, ArrowLeft, Loader2 } from "lucide-react";
 import { carFilters } from "@/data/mockData";
 import { useNavigate } from "react-router-dom";
@@ -11,17 +11,31 @@ const AdvertisePage = () => {
   const [description, setDescription] = useState("");
   const [car, setCar] = useState("");
   const [loading, setLoading] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true); // Trava de segurança
 
   const navigate = useNavigate();
+
+  // --- 1. PROTEÇÃO DE ROTA ---
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Acesso restrito. Faça login para anunciar.");
+        navigate("/login", { replace: true });
+      } else {
+        setAuthLoading(false);
+      }
+    };
+    checkUser();
+  }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 1. Verifica se o usuário está logado antes de publicar
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      toast.error("Você precisa estar logado para anunciar.");
+      toast.error("Sessão expirada. Faça login novamente.");
       navigate("/login");
       return;
     }
@@ -33,13 +47,12 @@ const AdvertisePage = () => {
 
     setLoading(true);
 
-    // 2. Monta o anúncio com o ID real do vendedor
     const payload = {
       title,
       price: Number(price),
       description,
-      image: "https://images.unsplash.com/photo-1503376660353-7e6692767b70?auto=format&fit=crop&q=80&w=800", // Imagem temporária
-      seller_id: user.id, // CARIMBO DO DONO
+      image: "https://images.unsplash.com/photo-1503376660353-7e6692767b70?auto=format&fit=crop&q=80&w=800",
+      seller_id: user.id,
       is_pro: false,
       category: "Geral",
       compatibility: car ? [car] : [],
@@ -52,15 +65,15 @@ const AdvertisePage = () => {
     };
 
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("products")
-        .insert([payload])
-        .select();
+        .insert([payload]);
 
       if (error) throw error;
 
       toast.success("Anúncio publicado no Hub! 🏎️");
-      navigate("/perfil");
+      // Limpa o estado para evitar loops de refresh na home
+      navigate("/perfil", { state: { refresh: true } });
     } catch (err: any) {
       toast.error("Erro ao publicar: " + err.message);
     } finally {
@@ -71,10 +84,13 @@ const AdvertisePage = () => {
   const inputClass =
     "w-full rounded-2xl bg-zinc-900 border-none py-4 px-4 text-[14px] font-medium text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-[#ccff00]/30 transition-all";
 
+  // Enquanto checa o login, tela preta
+  if (authLoading) return <div className="min-h-screen bg-black" />;
+
   return (
     <div className="min-h-screen bg-black pb-28 px-5 pt-6 text-white">
       <div className="flex items-center gap-4 mb-6">
-        <button onClick={() => navigate(-1)} className="p-2 bg-zinc-900 rounded-xl">
+        <button onClick={() => navigate(-1)} className="p-2 bg-zinc-900 rounded-xl active:scale-90 transition-transform">
           <ArrowLeft size={20} className="text-[#ccff00]" />
         </button>
         <div>
@@ -108,7 +124,7 @@ const AdvertisePage = () => {
               <select value={car} onChange={(e) => setCar(e.target.value)} className={`${inputClass} appearance-none pr-10`}>
                 <option value="">Selecione o veículo</option>
                 {carFilters.filter(c => c !== "Todos").map(c => (
-                  <option key={c} value={c} className="bg-zinc-900">{c}</option>
+                  <option key={c} value={c} className="bg-zinc-900 text-white">{c}</option>
                 ))}
               </select>
               <ChevronDown size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#ccff00] pointer-events-none" />
