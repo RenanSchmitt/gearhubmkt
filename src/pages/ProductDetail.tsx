@@ -15,13 +15,13 @@ const ProductDetail = () => {
 
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [deleteLoading, setDeleteLoading] = useState(false); // Loading específico para delete
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // --- LÓGICA DE EXCLUSÃO COMPLETA ---
   const handleDeleteProduct = async () => {
     const confirmDelete = window.confirm(
-      "TEM CERTEZA? \n\nIsso apagará o anúncio, a foto e todas as conversas vinculadas a esta peça permanentemente!"
+      "TEM CERTEZA? \n\nIsso apagará o anúncio, a foto e todas as conversas vinculadas permanentemente!"
     );
 
     if (!confirmDelete) return;
@@ -29,19 +29,22 @@ const ProductDetail = () => {
     try {
       setDeleteLoading(true);
 
-      // 1. LIMPAR A FOTO NO STORAGE
+      // 1. LIMPAR A FOTO NO STORAGE (Com extração limpa do nome)
       if (product.image && !product.image.includes('unsplash')) {
         const urlParts = product.image.split('/');
-        const fileName = urlParts[urlParts.length - 1];
+        // Pega a última parte da URL e remove parâmetros como ?t=123...
+        let fileName = urlParts[urlParts.length - 1].split('?')[0];
         
         if (fileName) {
-          await supabase.storage
+          const { error: storageError } = await supabase.storage
             .from('pecas')
             .remove([fileName]);
+          
+          if (storageError) console.error("Erro ao limpar imagem do Storage:", storageError);
         }
       }
 
-      // 2. LIMPAR MENSAGENS E CHATS (Baseado no thread_id que começa com o ID do produto)
+      // 2. LIMPAR MENSAGENS E CHATS
       const { error: msgError } = await supabase
         .from('messages')
         .delete()
@@ -154,7 +157,6 @@ const ProductDetail = () => {
 
   return (
     <div className="min-h-screen bg-black pb-40 text-white font-sans">
-      {/* HEADER */}
       <div className="fixed left-0 right-0 top-0 z-50 flex items-center justify-between px-4 pt-4">
         <button onClick={() => navigate(-1)} className="flex h-11 w-11 items-center justify-center rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 active:scale-95 transition-all">
           <ArrowLeft size={20} />
@@ -263,7 +265,6 @@ const ProductDetail = () => {
                 Editar Detalhes
               </button>
 
-              {/* BOTÃO EXCLUIR */}
               <button 
                 onClick={handleDeleteProduct}
                 disabled={deleteLoading}
