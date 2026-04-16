@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Camera, ChevronDown } from "lucide-react";
+import { Camera, ChevronDown, ArrowLeft, Loader2 } from "lucide-react";
 import { carFilters } from "@/data/mockData";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -17,22 +17,29 @@ const AdvertisePage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    console.log("🚀 SUBMIT CLICADO");
+    // 1. Verifica se o usuário está logado antes de publicar
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      toast.error("Você precisa estar logado para anunciar.");
+      navigate("/login");
+      return;
+    }
 
     if (!title || !price) {
-      console.log("❌ Validação falhou", { title, price });
-      toast.error("Preencha título e preço.");
+      toast.error("Preencha o título e o preço.");
       return;
     }
 
     setLoading(true);
 
+    // 2. Monta o anúncio com o ID real do vendedor
     const payload = {
       title,
       price: Number(price),
       description,
-      image: "",
-      seller_id: "u1",
+      image: "https://images.unsplash.com/photo-1503376660353-7e6692767b70?auto=format&fit=crop&q=80&w=800", // Imagem temporária
+      seller_id: user.id, // CARIMBO DO DONO
       is_pro: false,
       category: "Geral",
       compatibility: car ? [car] : [],
@@ -44,144 +51,79 @@ const AdvertisePage = () => {
       delivery: "Retirada local",
     };
 
-    console.log("📦 Payload enviado:", payload);
-
     try {
       const { data, error } = await supabase
         .from("products")
         .insert([payload])
         .select();
 
-      console.log("📡 RESPOSTA SUPABASE:", { data, error });
+      if (error) throw error;
 
-      if (error) {
-        console.error("🔥 ERRO DO SUPABASE:", error);
-        throw error;
-      }
-
-      console.log("✅ SUCESSO AO INSERIR:", data);
-
-      toast.success("Anúncio criado com sucesso! 🎉");
-
-      setTitle("");
-      setPrice("");
-      setDescription("");
-      setCar("");
-
-      navigate("/", { state: { refresh: Date.now() } });
-    } catch (err) {
-      console.error("💥 ERRO NO TRY/CATCH:", err);
-      toast.error("Erro ao criar anúncio");
+      toast.success("Anúncio publicado no Hub! 🏎️");
+      navigate("/perfil");
+    } catch (err: any) {
+      toast.error("Erro ao publicar: " + err.message);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const inputClass =
-    "w-full rounded-2xl surface py-3.5 px-4 text-[13px] font-medium text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-shadow";
+    "w-full rounded-2xl bg-zinc-900 border-none py-4 px-4 text-[14px] font-medium text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-[#ccff00]/30 transition-all";
 
   return (
-    <div className="min-h-screen pb-28 px-5 pt-6">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-        Novo anúncio
-      </p>
-      <h1 className="text-[22px] font-black tracking-tight text-foreground mt-1 mb-6">
-        Anunciar
-      </h1>
+    <div className="min-h-screen bg-black pb-28 px-5 pt-6 text-white">
+      <div className="flex items-center gap-4 mb-6">
+        <button onClick={() => navigate(-1)} className="p-2 bg-zinc-900 rounded-xl">
+          <ArrowLeft size={20} className="text-[#ccff00]" />
+        </button>
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Novo anúncio</p>
+          <h1 className="text-[22px] font-black tracking-tight text-[#ccff00] italic uppercase">Anunciar</h1>
+        </div>
+      </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <button
-          type="button"
-          className="flex w-full flex-col items-center justify-center gap-2.5 rounded-2xl border-2 border-dashed border-border/50 py-10 surface transition-all active:scale-[0.99]"
-        >
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15">
-            <Camera size={24} className="text-primary" />
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <button type="button" className="flex w-full flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-zinc-800 py-10 bg-zinc-900/30 transition-all active:scale-[0.98]">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#ccff00]/10">
+            <Camera size={24} className="text-[#ccff00]" />
           </div>
-          <p className="text-[13px] font-bold text-foreground">
-            Adicionar fotos
-          </p>
-          <p className="text-[11px] text-muted-foreground">
-            Até 10 fotos • JPG ou PNG
-          </p>
+          <p className="text-xs font-bold uppercase tracking-widest text-[#ccff00]">Adicionar Fotos</p>
         </button>
 
-        <div>
-          <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
-            Título
-          </label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Ex: Kit Turbo T3/T4"
-            className={inputClass}
-          />
-        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-500 ml-1">Título da Peça</label>
+            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: Turbina T3 roletada" className={inputClass} />
+          </div>
 
-        <div>
-          <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
-            Preço (R$)
-          </label>
-          <input
-            type="number"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            placeholder="3500"
-            className={inputClass}
-          />
-        </div>
+          <div>
+            <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-500 ml-1">Preço (R$)</label>
+            <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" className={inputClass} />
+          </div>
 
-        <div>
-          <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
-            Carro compatível
-          </label>
-          <div className="relative">
-            <select
-              value={car}
-              onChange={(e) => {
-                console.log("🚗 Car selecionado:", e.target.value);
-                setCar(e.target.value);
-              }}
-              className={`${inputClass} appearance-none pr-10`}
-            >
-              <option value="">Selecionar carro</option>
-              {carFilters
-                .filter((c) => c !== "Todos")
-                .map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
+          <div>
+            <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-500 ml-1">Compatibilidade</label>
+            <div className="relative">
+              <select value={car} onChange={(e) => setCar(e.target.value)} className={`${inputClass} appearance-none pr-10`}>
+                <option value="">Selecione o veículo</option>
+                {carFilters.filter(c => c !== "Todos").map(c => (
+                  <option key={c} value={c} className="bg-zinc-900">{c}</option>
                 ))}
-            </select>
-            <ChevronDown
-              size={16}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-            />
+              </select>
+              <ChevronDown size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#ccff00] pointer-events-none" />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-500 ml-1">Descrição Técnica</label>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Detalhes sobre o estado da peça..." rows={4} className={`${inputClass} resize-none`} />
           </div>
         </div>
 
-        <div>
-          <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
-            Descrição
-          </label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Descreva a peça com detalhes..."
-            rows={4}
-            className={`${inputClass} resize-none`}
-          />
-        </div>
-
-        <div className="pt-2">
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-2xl bg-primary py-4 font-bold text-[15px] text-primary-foreground transition-all active:scale-[0.98] glow-primary"
-          >
-            {loading ? "Publicando..." : "Publicar Anúncio"}
-          </button>
-        </div>
+        <button type="submit" disabled={loading} className="w-full rounded-2xl bg-[#ccff00] py-4 font-black text-[14px] text-black transition-all active:scale-[0.98] shadow-[0_0_20px_rgba(204,255,0,0.2)] uppercase tracking-widest flex items-center justify-center gap-2">
+          {loading ? <Loader2 size={18} className="animate-spin" /> : "Publicar no Hub"}
+        </button>
       </form>
     </div>
   );

@@ -1,141 +1,183 @@
 import { useEffect, useState } from "react";
-import { Star, MapPin, Settings, ChevronRight, LogOut, Crown, Zap, Eye, Heart, MousePointer, User as UserIcon } from "lucide-react";
+import { Star, MapPin, Settings, ChevronRight, LogOut, Crown, Zap, Eye, Heart, MousePointer, User as UserIcon, Loader2, Package } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase"; // Importando sua conexão real
+import { supabase } from "../lib/supabase";
 import ProductCard from "@/components/ProductCard";
 
 const ProfilePage = () => {
   const [user, setUser] = useState<any>(null);
+  const [userProducts, setUserProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Mock de produtos (vazio por enquanto até integrarmos os anúncios no banco)
-  const products: any[] = []; 
-
   useEffect(() => {
-    const getProfile = async () => {
+    const getProfileData = async () => {
+      setLoading(true);
+      
+      // 1. Pega o usuário logado
       const { data: { user: authUser } } = await supabase.auth.getUser();
       
       if (authUser) {
-        // Aqui simulamos os campos que o seu banco ainda não tem (como location e rating)
-        // para não quebrar o seu layout bonito
         setUser({
           id: authUser.id,
-          name: authUser.email?.split('@')[0] || "Piloto",
+          name: authUser.email?.split('@')[0].toUpperCase() || "PILOTO",
           email: authUser.email,
           location: "Brasil",
           description: "Membro GearHub Performance",
           rating: 5.0,
           sales: 0,
-          isPro: false
+          isPro: false 
         });
+
+        // 2. BUSCA OS ANÚNCIOS (Filtra pelo seller_id que gravamos no criar anúncio)
+        const { data: productsData, error } = await supabase
+          .from("products")
+          .select("*")
+          .eq("seller_id", authUser.id) // Garanta que a coluna no Supabase chama 'seller_id'
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error("Erro ao buscar produtos:", error);
+        } else {
+          console.log("Seus anúncios encontrados:", productsData);
+          setUserProducts(productsData || []);
+        }
+      } else {
+        navigate("/login");
       }
       setLoading(false);
     };
-    getProfile();
-  }, []);
+
+    getProfileData();
+  }, [navigate]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/login");
   };
 
-  // Se não estiver logado e terminou de carregar
-  if (!loading && !user) {
-    return (
-      <div className="min-h-screen bg-black pb-28 px-5 pt-6">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">Minha conta</p>
-        <h1 className="text-[22px] font-black tracking-tight text-[#ccff00] mt-1 mb-6 italic">PERFIL</h1>
-        <div className="mt-16 flex flex-col items-center text-center">
-          <div className="h-20 w-20 rounded-full bg-zinc-900 flex items-center justify-center mb-4">
-             <UserIcon size={40} className="text-zinc-700" />
-          </div>
-          <p className="text-sm font-bold text-white mb-6">Acesse sua conta para ver suas métricas</p>
-          <button 
-            onClick={() => navigate("/login")} 
-            className="rounded-2xl bg-[#ccff00] px-10 py-4 font-black text-black text-xs tracking-widest uppercase active:scale-95 transition-all shadow-[0_0_20px_rgba(204,255,0,0.2)]"
-          >
-            ENTRAR NO HUB
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // Métricas baseadas no que veio do banco
+  const totalViews = userProducts.reduce((s, p) => s + (p.views || 0), 0);
+  const totalFavs = userProducts.reduce((s, p) => s + (p.fav_count || 0), 0);
+  const totalClicks = userProducts.reduce((s, p) => s + (p.clicks || 0), 0);
 
-  if (loading) return <div className="min-h-screen bg-black" />;
+  if (loading) return (
+    <div className="min-h-screen bg-black flex items-center justify-center">
+      <Loader2 size={32} className="animate-spin text-[#ccff00]" />
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-black pb-28">
-      <div className="px-5 pt-6 pb-5">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">Minha conta</p>
-            <h1 className="text-[22px] font-black tracking-tight text-[#ccff00] italic mt-1 uppercase">Perfil</h1>
-          </div>
-          <button className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-900 active:scale-95 transition-all">
-            <Settings size={18} className="text-white" />
-          </button>
+    <div className="min-h-screen bg-black pb-28 text-white font-sans">
+      {/* Header */}
+      <div className="px-5 pt-8 flex justify-between items-center mb-6">
+        <div>
+          <p className="text-[10px] font-bold text-zinc-500 tracking-[0.3em] uppercase">Minha conta</p>
+          <h1 className="text-2xl font-black italic text-[#ccff00] tracking-tighter uppercase">Perfil</h1>
         </div>
+        <button className="h-10 w-10 bg-zinc-900 rounded-xl flex items-center justify-center border border-zinc-800 active:scale-95 transition-all">
+          <Settings size={18} />
+        </button>
+      </div>
 
-        {/* Profile Card Estilizado */}
-        <div className="rounded-3xl bg-zinc-900 p-6 border border-zinc-800/50">
+      {/* Card de Perfil */}
+      <div className="px-5 mb-6">
+        <div className="bg-zinc-900 rounded-[32px] p-6 border border-zinc-800/50 shadow-2xl">
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#ccff00] text-black text-xl font-black italic">
-              {user.name.substring(0, 2).toUpperCase()}
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#ccff00] text-black text-xl font-black italic shadow-[0_0_20px_rgba(204,255,0,0.3)]">
+              {user?.name?.substring(0, 2)}
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-[17px] font-black text-white italic uppercase">{user.name}</h2>
-              <div className="flex items-center gap-1.5 mt-0.5">
+              <h2 className="text-[17px] font-black italic uppercase tracking-tight">{user?.name}</h2>
+              <div className="flex items-center gap-1.5 mt-0.5 text-zinc-500">
                 <MapPin size={11} className="text-[#ccff00]" />
-                <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">{user.location}</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider">{user?.location}</span>
               </div>
             </div>
           </div>
-          <p className="mt-4 text-[13px] leading-relaxed text-zinc-400 font-medium">{user.description}</p>
+          <p className="mt-4 text-[13px] leading-relaxed text-zinc-400 font-medium">{user?.description}</p>
+          
           <div className="mt-5 flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-1 bg-black/40 px-3 py-1.5 rounded-full border border-zinc-800">
+            <div className="flex items-center gap-1 bg-black/40 px-3 py-1.5 rounded-xl border border-zinc-800">
               <Star size={12} className="fill-[#ccff00] text-[#ccff00]" />
-              <span className="text-[12px] font-black text-white">{user.rating.toFixed(1)}</span>
+              <span className="text-[12px] font-black">{user?.rating.toFixed(1)}</span>
             </div>
-            <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">{user.sales} vendas</span>
+            <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">{user?.sales} vendas</span>
           </div>
         </div>
       </div>
 
-      {/* Quick Actions Original com Cores Novas */}
+      {/* Métricas */}
+      {userProducts.length > 0 && (
+        <div className="px-5 mb-8">
+          <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-3 ml-1 uppercase">📊 Métricas do Hub</h2>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { icon: Eye, label: "Views", value: totalViews },
+              { icon: Heart, label: "Favs", value: totalFavs },
+              { icon: MousePointer, label: "Clicks", value: totalClicks },
+            ].map(({ icon: Icon, label, value }) => (
+              <div key={label} className="rounded-2xl bg-zinc-900 p-3 text-center border border-zinc-800/50">
+                <Icon size={16} className="text-[#ccff00] mx-auto mb-1" />
+                <p className="text-[16px] font-black text-white italic">{value}</p>
+                <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-tighter">{label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Lista de Ações */}
       <div className="px-5 mb-8">
-        <div className="rounded-3xl bg-zinc-900 border border-zinc-800/50 divide-y divide-zinc-800 overflow-hidden">
-          <button onClick={() => navigate("/favoritos")} className="flex w-full items-center justify-between px-5 py-4 transition-colors active:bg-zinc-800">
+        <div className="rounded-[28px] bg-zinc-900 border border-zinc-800/50 divide-y divide-zinc-800/50 overflow-hidden shadow-xl">
+          <button onClick={() => navigate("/favoritos")} className="flex w-full items-center justify-between px-5 py-4 active:bg-zinc-800 transition-colors">
             <span className="text-[13px] font-bold text-white uppercase tracking-tight">Meus favoritos</span>
-            <ChevronRight size={16} className="text-[#ccff00]" />
+            <ChevronRight size={16} className="text-zinc-700" />
           </button>
-          <button onClick={() => navigate("/procurar-peca")} className="flex w-full items-center justify-between px-5 py-4 transition-colors active:bg-zinc-800">
+          <button onClick={() => navigate("/procurar-peca")} className="flex w-full items-center justify-between px-5 py-4 active:bg-zinc-800 transition-colors">
             <span className="text-[13px] font-bold text-white uppercase tracking-tight">Procurar peça</span>
-            <ChevronRight size={16} className="text-[#ccff00]" />
+            <ChevronRight size={16} className="text-zinc-700" />
           </button>
-          <button onClick={handleLogout} className="flex w-full items-center justify-between px-5 py-4">
+          {!user?.isPro && (
+            <button onClick={() => navigate("/premium")} className="flex w-full items-center justify-between px-5 py-4 active:bg-zinc-800 transition-colors">
+              <div className="flex items-center gap-3">
+                <Crown size={16} className="text-[#ccff00]" />
+                <span className="text-[13px] font-bold text-[#ccff00] uppercase italic">Seja Premium</span>
+              </div>
+              <ChevronRight size={16} className="text-[#ccff00]" />
+            </button>
+          )}
+          <button onClick={handleLogout} className="flex w-full items-center justify-between px-5 py-4 bg-red-500/5 active:bg-red-500/10 transition-colors">
             <span className="text-[13px] font-black text-red-500 uppercase tracking-widest">Sair da conta</span>
             <LogOut size={15} className="text-red-500" />
           </button>
         </div>
       </div>
 
-      {/* User Listings Section */}
+      {/* Seção de Anúncios */}
       <div className="px-5">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[16px] font-black text-white italic uppercase tracking-tighter">Meus Anúncios</h2>
-          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">0 ATIVOS</span>
+        <div className="flex items-center justify-between mb-4 px-1">
+          <h2 className="text-[16px] font-black italic uppercase text-white tracking-tighter">Meus Anúncios</h2>
+          <span className="text-[10px] font-bold text-[#ccff00] uppercase tracking-widest">{userProducts.length} Peças</span>
         </div>
-        
-        <div className="rounded-3xl bg-zinc-900/50 border-2 border-dashed border-zinc-800 p-8 text-center">
-          <p className="text-sm font-bold text-zinc-500 uppercase tracking-tighter">Nenhum anúncio ativo</p>
-          <button 
-            onClick={() => navigate("/anunciar")} 
-            className="mt-4 rounded-xl bg-white px-6 py-2.5 text-[11px] font-black text-black uppercase tracking-widest active:scale-95 transition-all"
-          >
-            Criar anúncio
-          </button>
-        </div>
+
+        {userProducts.length > 0 ? (
+          <div className="grid grid-cols-2 gap-3">
+            {userProducts.map((product, i) => (
+              <ProductCard key={product.id} product={product} index={i} />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-[32px] bg-zinc-900/30 border-2 border-dashed border-zinc-800 p-10 text-center">
+            <p className="text-sm font-bold text-zinc-600 uppercase tracking-tighter mb-4">Seu estoque está vazio</p>
+            <button 
+              onClick={() => navigate("/anunciar")} 
+              className="rounded-xl bg-white px-8 py-3 text-[11px] font-black text-black uppercase tracking-widest active:scale-95 transition-all"
+            >
+              Anunciar Peça
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
