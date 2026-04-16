@@ -4,9 +4,9 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 export default defineConfig(({ mode }) => ({
-  // AJUSTE AQUI: Se for para o build (produção), usamos './' para o Android não dar tela branca.
-  // Isso também funciona no GitHub Pages na maioria dos casos.
-  base: mode === 'production' ? './' : '/',
+  // Usar "" garante que o index.html procure a pasta assets 
+  // de forma relativa, resolvendo a tela branca no Android.
+  base: mode === 'production' ? "" : "/",
   
   server: {
     host: "::",
