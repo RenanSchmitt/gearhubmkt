@@ -1,144 +1,141 @@
-import { Star, MapPin, Settings, ChevronRight, LogOut, Crown, Zap, Eye, Heart, MousePointer } from "lucide-react";
-import { useStore } from "@/hooks/useStore";
+import { useEffect, useState } from "react";
+import { Star, MapPin, Settings, ChevronRight, LogOut, Crown, Zap, Eye, Heart, MousePointer, User as UserIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "../lib/supabase"; // Importando sua conexão real
 import ProductCard from "@/components/ProductCard";
 
 const ProfilePage = () => {
-  const { user, isLoggedIn, logout, products } = useStore();
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  if (!isLoggedIn || !user) {
+  // Mock de produtos (vazio por enquanto até integrarmos os anúncios no banco)
+  const products: any[] = []; 
+
+  useEffect(() => {
+    const getProfile = async () => {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      
+      if (authUser) {
+        // Aqui simulamos os campos que o seu banco ainda não tem (como location e rating)
+        // para não quebrar o seu layout bonito
+        setUser({
+          id: authUser.id,
+          name: authUser.email?.split('@')[0] || "Piloto",
+          email: authUser.email,
+          location: "Brasil",
+          description: "Membro GearHub Performance",
+          rating: 5.0,
+          sales: 0,
+          isPro: false
+        });
+      }
+      setLoading(false);
+    };
+    getProfile();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/login");
+  };
+
+  // Se não estiver logado e terminou de carregar
+  if (!loading && !user) {
     return (
-      <div className="min-h-screen pb-28 px-5 pt-6">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Minha conta</p>
-        <h1 className="text-[22px] font-black tracking-tight text-foreground mt-1 mb-6">Perfil</h1>
+      <div className="min-h-screen bg-black pb-28 px-5 pt-6">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">Minha conta</p>
+        <h1 className="text-[22px] font-black tracking-tight text-[#ccff00] mt-1 mb-6 italic">PERFIL</h1>
         <div className="mt-16 flex flex-col items-center text-center">
-          <p className="text-sm font-bold text-foreground mb-2">Faça login para acessar</p>
-          <button onClick={() => navigate("/login")} className="rounded-2xl bg-primary px-8 py-3 font-bold text-primary-foreground active:scale-95 transition-all">
-            Entrar
+          <div className="h-20 w-20 rounded-full bg-zinc-900 flex items-center justify-center mb-4">
+             <UserIcon size={40} className="text-zinc-700" />
+          </div>
+          <p className="text-sm font-bold text-white mb-6">Acesse sua conta para ver suas métricas</p>
+          <button 
+            onClick={() => navigate("/login")} 
+            className="rounded-2xl bg-[#ccff00] px-10 py-4 font-black text-black text-xs tracking-widest uppercase active:scale-95 transition-all shadow-[0_0_20px_rgba(204,255,0,0.2)]"
+          >
+            ENTRAR NO HUB
           </button>
         </div>
       </div>
     );
   }
 
-  const userProducts = products.filter(p => p.sellerId === user.id);
-  const totalViews = userProducts.reduce((s, p) => s + (p.views || 0), 0);
-  const totalFavs = userProducts.reduce((s, p) => s + (p.favCount || 0), 0);
-  const totalClicks = userProducts.reduce((s, p) => s + (p.clicks || 0), 0);
+  if (loading) return <div className="min-h-screen bg-black" />;
 
   return (
-    <div className="min-h-screen pb-28">
+    <div className="min-h-screen bg-black pb-28">
       <div className="px-5 pt-6 pb-5">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Minha conta</p>
-            <h1 className="text-[22px] font-black tracking-tight text-foreground mt-1">Perfil</h1>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">Minha conta</p>
+            <h1 className="text-[22px] font-black tracking-tight text-[#ccff00] italic mt-1 uppercase">Perfil</h1>
           </div>
-          <button className="flex h-10 w-10 items-center justify-center rounded-xl surface active:scale-95 transition-all">
-            <Settings size={18} className="text-muted-foreground" />
+          <button className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-900 active:scale-95 transition-all">
+            <Settings size={18} className="text-white" />
           </button>
         </div>
 
-        {/* Profile Card */}
-        <div className="rounded-2xl surface p-5 card-shadow">
+        {/* Profile Card Estilizado */}
+        <div className="rounded-3xl bg-zinc-900 p-6 border border-zinc-800/50">
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/15 text-primary text-xl font-black">
-              {user.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#ccff00] text-black text-xl font-black italic">
+              {user.name.substring(0, 2).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-[15px] font-bold text-foreground">{user.name}</h2>
+              <h2 className="text-[17px] font-black text-white italic uppercase">{user.name}</h2>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <MapPin size={11} className="text-muted-foreground" />
-                <span className="text-[11px] font-medium text-muted-foreground">{user.location}</span>
+                <MapPin size={11} className="text-[#ccff00]" />
+                <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">{user.location}</span>
               </div>
             </div>
           </div>
-          <p className="mt-3 text-[13px] leading-relaxed text-secondary-foreground">{user.description}</p>
-          <div className="mt-4 flex items-center gap-3 flex-wrap">
-            {user.isPro && (
-              <span className="rounded-lg bg-primary/15 px-2.5 py-1 text-[9px] font-extrabold tracking-[0.15em] text-primary">
-                VENDEDOR PRO
-              </span>
-            )}
-            <div className="flex items-center gap-1">
-              <Star size={12} className="fill-primary text-primary" />
-              <span className="text-[13px] font-bold text-foreground">{user.rating}</span>
+          <p className="mt-4 text-[13px] leading-relaxed text-zinc-400 font-medium">{user.description}</p>
+          <div className="mt-5 flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1 bg-black/40 px-3 py-1.5 rounded-full border border-zinc-800">
+              <Star size={12} className="fill-[#ccff00] text-[#ccff00]" />
+              <span className="text-[12px] font-black text-white">{user.rating.toFixed(1)}</span>
             </div>
-            <span className="text-[11px] text-muted-foreground">{user.sales} vendas</span>
+            <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">{user.sales} vendas</span>
           </div>
         </div>
       </div>
 
-      {/* Metrics */}
-      {userProducts.length > 0 && (
-        <div className="px-5 mb-5">
-          <h2 className="text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground mb-3">📊 Métricas</h2>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { icon: Eye, label: "Visualizações", value: totalViews },
-              { icon: Heart, label: "Favoritos", value: totalFavs },
-              { icon: MousePointer, label: "Cliques", value: totalClicks },
-            ].map(({ icon: Icon, label, value }) => (
-              <div key={label} className="rounded-2xl surface p-3 text-center card-shadow">
-                <Icon size={16} className="text-primary mx-auto mb-1" />
-                <p className="text-[15px] font-black text-foreground">{value}</p>
-                <p className="text-[10px] text-muted-foreground">{label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Quick Actions */}
-      <div className="px-5 mb-5">
-        <div className="rounded-2xl surface card-shadow divide-y divide-border/40 overflow-hidden">
-          {!user.isPro && (
-            <button onClick={() => navigate("/premium")} className="flex w-full items-center justify-between px-4 py-3.5 transition-colors active:surface-hover">
-              <div className="flex items-center gap-2">
-                <Crown size={15} className="text-primary" />
-                <span className="text-[13px] font-semibold text-primary">Seja Premium</span>
-              </div>
-              <ChevronRight size={16} className="text-primary" />
-            </button>
-          )}
-          <button onClick={() => navigate("/favoritos")} className="flex w-full items-center justify-between px-4 py-3.5 transition-colors active:surface-hover">
-            <span className="text-[13px] font-semibold text-foreground">Meus favoritos</span>
-            <ChevronRight size={16} className="text-muted-foreground" />
+      {/* Quick Actions Original com Cores Novas */}
+      <div className="px-5 mb-8">
+        <div className="rounded-3xl bg-zinc-900 border border-zinc-800/50 divide-y divide-zinc-800 overflow-hidden">
+          <button onClick={() => navigate("/favoritos")} className="flex w-full items-center justify-between px-5 py-4 transition-colors active:bg-zinc-800">
+            <span className="text-[13px] font-bold text-white uppercase tracking-tight">Meus favoritos</span>
+            <ChevronRight size={16} className="text-[#ccff00]" />
           </button>
-          <button onClick={() => navigate("/procurar-peca")} className="flex w-full items-center justify-between px-4 py-3.5 transition-colors active:surface-hover">
-            <span className="text-[13px] font-semibold text-foreground">Procurar peça</span>
-            <ChevronRight size={16} className="text-muted-foreground" />
+          <button onClick={() => navigate("/procurar-peca")} className="flex w-full items-center justify-between px-5 py-4 transition-colors active:bg-zinc-800">
+            <span className="text-[13px] font-bold text-white uppercase tracking-tight">Procurar peça</span>
+            <ChevronRight size={16} className="text-[#ccff00]" />
           </button>
-          <button onClick={() => { logout(); navigate("/"); }} className="flex w-full items-center justify-between px-4 py-3.5">
-            <span className="text-[13px] font-semibold text-destructive">Sair da conta</span>
-            <LogOut size={15} className="text-destructive" />
+          <button onClick={handleLogout} className="flex w-full items-center justify-between px-5 py-4">
+            <span className="text-[13px] font-black text-red-500 uppercase tracking-widest">Sair da conta</span>
+            <LogOut size={15} className="text-red-500" />
           </button>
         </div>
       </div>
 
-      {/* User Listings */}
+      {/* User Listings Section */}
       <div className="px-5">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-[15px] font-bold text-foreground">Meus Anúncios</h2>
-          <span className="text-[11px] font-medium text-muted-foreground">{userProducts.length} ativos</span>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-[16px] font-black text-white italic uppercase tracking-tighter">Meus Anúncios</h2>
+          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">0 ATIVOS</span>
         </div>
-        {userProducts.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3">
-            {userProducts.map((product, i) => (
-              <div key={product.id} className="relative">
-                <ProductCard product={product} index={i} />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-2xl surface p-6 text-center">
-            <p className="text-sm text-muted-foreground">Nenhum anúncio ainda</p>
-            <button onClick={() => navigate("/anunciar")} className="mt-3 rounded-xl bg-primary px-6 py-2 text-sm font-bold text-primary-foreground active:scale-95">
-              Criar anúncio
-            </button>
-          </div>
-        )}
+        
+        <div className="rounded-3xl bg-zinc-900/50 border-2 border-dashed border-zinc-800 p-8 text-center">
+          <p className="text-sm font-bold text-zinc-500 uppercase tracking-tighter">Nenhum anúncio ativo</p>
+          <button 
+            onClick={() => navigate("/anunciar")} 
+            className="mt-4 rounded-xl bg-white px-6 py-2.5 text-[11px] font-black text-black uppercase tracking-widest active:scale-95 transition-all"
+          >
+            Criar anúncio
+          </button>
+        </div>
       </div>
     </div>
   );

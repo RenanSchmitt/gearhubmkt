@@ -23,7 +23,8 @@ const App = () => (
     <TooltipProvider>
       <StoreProvider>
         <Sonner />
-        <BrowserRouter>
+        {/* Apenas UM BrowserRouter com o basename aqui */}
+        <BrowserRouter basename="/gearhubmkt">
           <div className="mx-auto max-w-md min-h-screen relative">
             <Routes>
               <Route path="/" element={<HomePage />} />
