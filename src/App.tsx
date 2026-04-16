@@ -22,24 +22,34 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <StoreProvider>
-        <Sonner />
-        {/* Apenas UM BrowserRouter com o basename aqui */}
+        <Sonner position="top-center" expand={false} richColors />
+        
+        {/* Configuração do Router com o basename solicitado */}
         <BrowserRouter basename="/gearhubmkt">
-          <div className="mx-auto max-w-md min-h-screen relative">
+          <div className="mx-auto max-w-md min-h-screen relative bg-black">
             <Routes>
+              {/* Rotas Principais */}
               <Route path="/" element={<HomePage />} />
               <Route path="/produto/:id" element={<ProductDetail />} />
               <Route path="/favoritos" element={<FavoritesPage />} />
               <Route path="/anunciar" element={<AdvertisePage />} />
+              
+              {/* Rotas de Chat (O ChatPage gerencia a troca de lista para conversa) */}
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/chat/:threadId" element={<ChatPage />} />
+              
+              {/* Perfil e Negócios */}
               <Route path="/perfil" element={<ProfilePage />} />
               <Route path="/premium" element={<PremiumPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/procurar-peca" element={<PartRequestPage />} />
               <Route path="/loja/:sellerId" element={<SellerStorePage />} />
+              
+              {/* Fallback 404 */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+
+            {/* Navegação Inferior Fixa */}
             <BottomNav />
           </div>
         </BrowserRouter>
