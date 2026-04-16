@@ -30,7 +30,7 @@ jobs:
 
       - name: Preparar Android
         run: |
-          # Adiciona a plataforma apenas se necessário e sincroniza
+          # Adiciona a plataforma apenas se necessário e sincroniza os arquivos do Vite
           npx cap add android || true
           npx cap sync android
 
@@ -40,7 +40,7 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Upload APK
+      - name: Disponibilizar APK
         uses: actions/upload-artifact@v4
         with:
           name: gearhub-debug-apk
