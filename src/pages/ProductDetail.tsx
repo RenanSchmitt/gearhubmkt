@@ -1,6 +1,6 @@
 import {
   ArrowLeft, Star, MessageCircle, Share2, Heart, ShieldCheck, Zap,
-  Truck, Bell, Edit3, Loader2, Package, Eye
+  Truck, Bell, Edit3, Loader2, Package, Eye, Trash2
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useStore } from "@/hooks/useStore";
@@ -15,33 +15,70 @@ const ProductDetail = () => {
 
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [deleteLoading, setDeleteLoading] = useState(false); // Loading específico para delete
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  // --- LÓGICA PARA INICIAR O CHAT ---
+  // --- LÓGICA DE EXCLUSÃO COMPLETA ---
+  const handleDeleteProduct = async () => {
+    const confirmDelete = window.confirm(
+      "TEM CERTEZA? \n\nIsso apagará o anúncio, a foto e todas as conversas vinculadas a esta peça permanentemente!"
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      setDeleteLoading(true);
+
+      // 1. LIMPAR A FOTO NO STORAGE
+      if (product.image && !product.image.includes('unsplash')) {
+        const urlParts = product.image.split('/');
+        const fileName = urlParts[urlParts.length - 1];
+        
+        if (fileName) {
+          await supabase.storage
+            .from('pecas')
+            .remove([fileName]);
+        }
+      }
+
+      // 2. LIMPAR MENSAGENS E CHATS (Baseado no thread_id que começa com o ID do produto)
+      const { error: msgError } = await supabase
+        .from('messages')
+        .delete()
+        .like('thread_id', `${id}%`);
+
+      if (msgError) console.error("Aviso: Falha ao limpar mensagens:", msgError);
+
+      // 3. EXCLUIR O PRODUTO NO BANCO
+      const { error: productError } = await supabase
+        .from("products")
+        .delete()
+        .eq("id", id);
+
+      if (productError) throw productError;
+
+      toast.success("ANÚNCIO REMOVIDO! 🗑️");
+      navigate("/perfil", { replace: true });
+    } catch (err: any) {
+      toast.error("Erro ao excluir: " + err.message);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const handleStartChat = async () => {
     try {
-      // 1. Verifica se o usuário está logado
       const { data: { user } } = await supabase.auth.getUser();
-      
       if (!user) {
         toast.error("Acelera! Faça login para negociar.");
         return navigate("/login");
       }
-
-      // 2. Impede chat consigo mesmo
       if (user.id === product.seller_id) {
         toast.error("Você é o dono deste anúncio!");
         return;
       }
-
-      // 3. Gera o ID da negociação (Padrão: ID_DO_PRODUTO + ID_DO_COMPRADOR)
-      // Isso cria uma "sala" única para você e esse vendedor sobre este item
       const threadId = `${product.id}_${user.id}`;
-
-      // 4. Navega para a página de chat passando o ID da thread
-      // O ChatPage vai capturar esse ID e abrir a visão funcional
       navigate(`/chat/${threadId}`);
-      
     } catch (error) {
       console.error("Erro ao iniciar chat:", error);
       toast.error("Falha ao abrir o chat.");
@@ -52,12 +89,9 @@ const ProductDetail = () => {
     async function getInitialData() {
       try {
         setLoading(true);
-
-        // Pegar usuário logado
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (authUser) setCurrentUserId(authUser.id);
 
-        // Buscar o produto
         const { data: productData, error: productError } = await supabase
           .from("products")
           .select("*")
@@ -66,7 +100,6 @@ const ProductDetail = () => {
 
         if (productError || !productData) throw new Error("Produto não encontrado");
 
-        // Buscar o vendedor (profiles)
         let sellerInfo = null;
         if (productData.seller_id) {
           const { data: sellerData } = await supabase
@@ -77,7 +110,6 @@ const ProductDetail = () => {
           sellerInfo = sellerData;
         }
 
-        // Formatação final
         setProduct({
           ...productData,
           sellerId: String(productData.seller_id),
@@ -102,7 +134,6 @@ const ProductDetail = () => {
         setLoading(false);
       }
     }
-
     if (id) getInitialData();
   }, [id]);
 
@@ -133,14 +164,11 @@ const ProductDetail = () => {
         </button>
       </div>
 
-      {/* IMAGEM DO PRODUTO */}
       <div className="aspect-square w-full bg-zinc-900 border-b border-white/5">
         <img src={product.image} alt={product.title} className="h-full w-full object-cover" />
       </div>
 
-      {/* CONTEÚDO PRINCIPAL */}
       <div className="relative -mt-10 rounded-t-[40px] bg-black px-6 pt-10 space-y-8 border-t border-[#ccff00]/10 shadow-[0_-30px_60px_rgba(0,0,0,0.9)]">
-
         <div className="space-y-4">
           <div className="flex items-start justify-between gap-4">
             <h1 className="text-2xl font-black uppercase italic leading-[1.1] tracking-tighter">
@@ -158,7 +186,6 @@ const ProductDetail = () => {
           </div>
         </div>
 
-        {/* SPECS RÁPIDAS */}
         <div className="grid grid-cols-2 gap-3">
           <div className="flex items-center gap-3 rounded-[22px] bg-zinc-900/50 border border-white/5 p-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-800 text-[#ccff00]"><Package size={20} /></div>
@@ -176,7 +203,6 @@ const ProductDetail = () => {
           </div>
         </div>
 
-        {/* LOGÍSTICA */}
         <div className="flex items-center gap-4 rounded-[22px] bg-[#1A1A1A] border border-white/5 p-5">
           <div className="h-12 w-12 rounded-2xl bg-[#ccff00]/10 flex items-center justify-center"><Truck size={24} className="text-[#ccff00]" /></div>
           <div className="flex flex-col">
@@ -185,7 +211,6 @@ const ProductDetail = () => {
           </div>
         </div>
 
-        {/* COMPATIBILIDADE */}
         <div className="space-y-4">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Compatibilidade</h2>
@@ -211,7 +236,6 @@ const ProductDetail = () => {
           </div>
         </div>
 
-        {/* DESCRIÇÃO */}
         <div className="space-y-3">
           <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">Descrição Técnica</h2>
           <p className="text-[15px] leading-relaxed text-zinc-400 font-medium bg-zinc-900/30 p-4 rounded-2xl border border-white/5 whitespace-pre-wrap">
@@ -219,32 +243,42 @@ const ProductDetail = () => {
           </p>
         </div>
 
-        {/* AÇÕES DO DONO (EDITAR/IMPULSIONAR) */}
-<div className="space-y-4 pt-4">
-  {isOwner && (
-    <div className="flex flex-col gap-3">
-      {/* Botão de Impulsionar */}
-      <button 
-        onClick={() => { boostProduct(product.id); toast.success("⚡ Turbo ativado!"); }} 
-        className="flex w-full items-center justify-center gap-3 rounded-[24px] bg-[#ccff00] py-5 shadow-[0_15px_35px_rgba(204,255,0,0.2)] active:scale-[0.98] transition-transform"
-      >
-        <Zap size={20} className="text-black fill-black" />
-        <span className="text-[15px] font-black text-black uppercase tracking-widest italic">Impulsionar Anúncio</span>
-      </button>
+        {/* AÇÕES DO DONO (EDITAR/IMPULSIONAR/REMOVER) */}
+        <div className="space-y-4 pt-4">
+          {isOwner && (
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={() => { boostProduct(product.id); toast.success("⚡ Turbo ativado!"); }} 
+                className="flex w-full items-center justify-center gap-3 rounded-[24px] bg-[#ccff00] py-5 shadow-[0_15px_35px_rgba(204,255,0,0.2)] active:scale-[0.98] transition-transform"
+              >
+                <Zap size={20} className="text-black fill-black" />
+                <span className="text-[15px] font-black text-black uppercase tracking-widest italic">Impulsionar Anúncio</span>
+              </button>
 
-      {/* Botão de Editar - AGORA FUNCIONAL */}
-      <button 
-        onClick={() => navigate(`/editar-anuncio/${product.id}`)}
-        className="flex w-full items-center justify-center gap-3 rounded-[24px] bg-zinc-900 py-5 border border-zinc-800 text-white text-[14px] font-black uppercase tracking-widest active:scale-[0.98] transition-transform"
-      >
-        <Edit3 size={18} className="text-[#ccff00]" /> 
-        Editar Detalhes
-      </button>
-    </div>
-  )}
-</div>
+              <button 
+                onClick={() => navigate(`/editar-anuncio/${product.id}`)}
+                className="flex w-full items-center justify-center gap-3 rounded-[24px] bg-zinc-900 py-5 border border-zinc-800 text-white text-[14px] font-black uppercase tracking-widest active:scale-[0.98] transition-transform"
+              >
+                <Edit3 size={18} className="text-[#ccff00]" /> 
+                Editar Detalhes
+              </button>
 
-        {/* CARD DO VENDEDOR */}
+              {/* BOTÃO EXCLUIR */}
+              <button 
+                onClick={handleDeleteProduct}
+                disabled={deleteLoading}
+                className="flex w-full items-center justify-center gap-3 rounded-[24px] bg-red-950/20 py-4 border border-red-900/30 text-red-500 text-[12px] font-black uppercase tracking-widest active:scale-[0.98] transition-all disabled:opacity-50"
+              >
+                {deleteLoading ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <><Trash2 size={16} /> Remover Anúncio</>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+
         {!isOwner && (
           <div className="flex w-full items-center gap-4 rounded-[32px] bg-zinc-900 p-6 border border-white/5">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#ccff00] text-black font-black text-xl italic">
@@ -264,7 +298,6 @@ const ProductDetail = () => {
         )}
       </div>
 
-      {/* FOOTER FIXO DE COMPRA/CHAT */}
       {!isOwner && (
         <div className="fixed bottom-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-2xl border-t border-white/5 px-6 pb-10 pt-5">
           <div className="mx-auto flex max-w-md gap-4">
