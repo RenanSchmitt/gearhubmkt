@@ -13,7 +13,8 @@ import AdvertisePage from "./pages/AdvertisePage";
 import EditAdvertisePage from "./pages/EditAdvertisePage"; 
 import ChatPage from "./pages/ChatPage";
 import ProfilePage from "./pages/ProfilePage";
-import PublicProfile from "./pages/PublicProfile"; // Nova página de perfil público
+import EditProfile from "./pages/EditProfile"; // Import da nova página
+import PublicProfile from "./pages/PublicProfile";
 import PremiumPage from "./pages/PremiumPage";
 import LoginPage from "./pages/LoginPage";
 import PartRequestPage from "./pages/PartRequestPage";
@@ -36,7 +37,7 @@ const App = () => (
               <Route path="/favoritos" element={<FavoritesPage />} />
               <Route path="/anunciar" element={<AdvertisePage />} />
               
-              {/* Rota de Edição */}
+              {/* Rota de Edição de Anúncio */}
               <Route path="/editar-anuncio/:id" element={<EditAdvertisePage />} />
               
               {/* Rotas de Chat */}
@@ -45,7 +46,8 @@ const App = () => (
               
               {/* Perfil e Negócios */}
               <Route path="/perfil" element={<ProfilePage />} />
-              <Route path="/vendedor/:vendedorId" element={<PublicProfile />} /> {/* Rota Atualizada */}
+              <Route path="/editar-perfil" element={<EditProfile />} /> {/* Nova Rota de Edição de Perfil */}
+              <Route path="/vendedor/:vendedorId" element={<PublicProfile />} />
               <Route path="/premium" element={<PremiumPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/procurar-peca" element={<PartRequestPage />} />

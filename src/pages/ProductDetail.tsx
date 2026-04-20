@@ -17,6 +17,7 @@ const ProductDetail = () => {
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [imageError, setImageError] = useState(false); // Fallback para foto do vendedor
 
   // --- LÓGICA DE EXCLUSÃO ---
   const handleDeleteProduct = async () => {
@@ -115,6 +116,7 @@ const ProductDetail = () => {
           ...productData,
           sellerId: String(productData.seller_id),
           sellerName: sellerInfo?.nome || sellerInfo?.name || sellerInfo?.username || "Piloto GearHub",
+          sellerAvatar: sellerInfo?.avatar_url, // BUSCANDO A FOTO AQUI
           sellerRating: sellerInfo?.rating || "5.0",
           sellerSales: sellerInfo?.sales || "0",
           isSellerPro: isSellerPro,
@@ -300,7 +302,7 @@ const ProductDetail = () => {
           )}
         </div>
 
-        {/* CARD DO VENDEDOR (COM LINK PARA PERFIL PÚBLICO) */}
+        {/* CARD DO VENDEDOR ATUALIZADO COM FOTO */}
         {!isOwner && (
           <div 
             onClick={() => navigate(`/vendedor/${product.seller_id}`)}
@@ -308,11 +310,22 @@ const ProductDetail = () => {
               product.isSellerPro ? 'border-[#ccff00]/30 shadow-[0_0_30px_rgba(204,255,0,0.05)]' : 'border-white/5'
             }`}
           >
-            <div className={`flex h-14 w-14 items-center justify-center rounded-2xl font-black text-xl italic ${
+            {/* ESPAÇO PARA FOTO DO VENDEDOR */}
+            <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl overflow-hidden font-black text-xl italic ${
               product.isSellerPro ? 'bg-[#ccff00] text-black shadow-[0_0_15px_rgba(204,255,0,0.3)]' : 'bg-zinc-800 text-white'
             }`}>
-              {product.sellerName.charAt(0).toUpperCase()}
+              {product.sellerAvatar && !imageError ? (
+                <img 
+                  src={product.sellerAvatar} 
+                  className="h-full w-full object-cover" 
+                  alt="Vendedor"
+                  onError={() => setImageError(true)}
+                />
+              ) : (
+                product.sellerName.charAt(0).toUpperCase()
+              )}
             </div>
+
             <div className="flex-1 overflow-hidden">
               <div className="flex items-center gap-2">
                 <p className="text-[16px] font-black text-white uppercase italic tracking-tight truncate">{product.sellerName}</p>

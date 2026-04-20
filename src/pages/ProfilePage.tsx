@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { 
   Star, MapPin, Settings, ChevronRight, LogOut, Crown, 
-  Zap, Eye, Heart, MousePointer, Loader2, ShieldCheck 
+  Eye, Heart, MousePointer, Loader2, ShieldCheck, UserCircle
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
@@ -11,6 +11,7 @@ const ProfilePage = () => {
   const [user, setUser] = useState<any>(null);
   const [userProducts, setUserProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [imageError, setImageError] = useState(false); // Fallback para foto
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -18,19 +19,21 @@ const ProfilePage = () => {
       try {
         setLoading(true);
         
-        // 1. Pega o usuário autenticado
         const { data: { user: authUser } } = await supabase.auth.getUser();
         
         if (authUser) {
-          // 2. Busca dados da tabela 'profiles' usando os campos reais do seu banco
           const { data: profileData } = await supabase
             .from("profiles")
             .select("*")
             .eq("id", authUser.id)
             .single();
 
-          // Verifica o status baseado na sua coluna 'account_status'
           const isProUser = profileData?.account_status?.toLowerCase() === 'pro';
+
+          // Evita cache de imagem antiga ao atualizar
+          const avatarWithCacheBuster = profileData?.avatar_url 
+            ? `${profileData.avatar_url}?t=${new Date().getTime()}` 
+            : null;
 
           setUser({
             id: authUser.id,
@@ -38,12 +41,12 @@ const ProfilePage = () => {
             email: authUser.email,
             location: profileData?.cidade ? `${profileData.cidade}, ${profileData.estado}` : "Brasil",
             description: profileData?.bio || "Membro GearHub Performance",
+            avatar_url: avatarWithCacheBuster,
             rating: profileData?.rating || 5.0,
             sales: profileData?.sales || 0,
             isPro: isProUser 
           });
 
-          // 3. Busca os anúncios do usuário
           const { data: productsData, error } = await supabase
             .from("products")
             .select("*")
@@ -70,7 +73,6 @@ const ProfilePage = () => {
     navigate("/login");
   };
 
-  // Cálculos de métricas
   const totalViews = userProducts.reduce((s, p) => s + (p.views || 0), 0);
   const totalFavs = userProducts.reduce((s, p) => s + (p.fav_count || 0), 0);
   const totalClicks = userProducts.reduce((s, p) => s + (p.clicks || 0), 0);
@@ -86,15 +88,14 @@ const ProfilePage = () => {
       {/* Header */}
       <div className="px-5 pt-8 flex justify-between items-center mb-6">
         <div>
-          <p className="text-[10px] font-bold text-zinc-500 tracking-[0.3em] uppercase">Minha conta</p>
+          <p className="text-[10px] font-bold text-zinc-500 tracking-[0.3em] uppercase leading-none mb-1">Minha conta</p>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-black italic text-[#ccff00] tracking-tighter uppercase">Perfil</h1>
             
-            {/* Badge Dinâmica baseada no account_status */}
             {user?.isPro ? (
-              <div className="flex items-center gap-1 bg-[#ccff00]/10 border border-[#ccff00]/20 px-2 py-0.5 rounded-lg shadow-[0_0_15px_rgba(204,255,0,0.1)]">
+              <div className="flex items-center gap-1 bg-[#ccff00]/10 border border-[#ccff00]/20 px-2 py-0.5 rounded-lg">
                 <Crown size={10} className="text-[#ccff00] fill-[#ccff00]" />
-                <span className="text-[9px] font-black text-[#ccff00] uppercase italic tracking-widest">PRO PLAN</span>
+                <span className="text-[9px] font-black text-[#ccff00] uppercase italic tracking-widest">PRO</span>
               </div>
             ) : (
               <div className="flex items-center gap-1 bg-zinc-800/50 border border-zinc-700/50 px-2 py-0.5 rounded-lg">
@@ -103,15 +104,19 @@ const ProfilePage = () => {
             )}
           </div>
         </div>
-        <button className="h-10 w-10 bg-zinc-900 rounded-xl flex items-center justify-center border border-zinc-800 active:scale-95 transition-all">
-          <Settings size={18} />
+        
+        <button 
+          onClick={() => navigate("/editar-perfil")}
+          className="h-10 w-10 bg-zinc-900 rounded-xl flex items-center justify-center border border-zinc-800 active:scale-95 transition-all shadow-lg"
+        >
+          <Settings size={18} className="text-[#ccff00]" />
         </button>
       </div>
 
       {/* Card de Perfil */}
       <div className="px-5 mb-6">
         <div className="bg-zinc-900 rounded-[32px] p-6 border border-zinc-800/50 shadow-2xl relative overflow-hidden">
-          {/* Decoração sutil para usuários PRO */}
+          {/* AQUELA COROA GIGANTE DE FUNDO QUE VOCÊ CURTE */}
           {user?.isPro && (
             <div className="absolute -right-4 -top-4 opacity-[0.03] pointer-events-none">
               <Crown size={140} className="rotate-12 text-[#ccff00]" />
@@ -119,8 +124,18 @@ const ProfilePage = () => {
           )}
 
           <div className="flex items-center gap-4">
-            <div className={`flex h-16 w-16 items-center justify-center rounded-2xl text-black text-xl font-black italic shadow-2xl transition-all ${user?.isPro ? 'bg-[#ccff00] shadow-[#ccff00]/20' : 'bg-white'}`}>
-              {user?.name?.substring(0, 2).toUpperCase()}
+            {/* Espaço para Foto ou Iniciais */}
+            <div className={`flex h-16 w-16 items-center justify-center rounded-2xl overflow-hidden text-black text-xl font-black italic shadow-2xl transition-all ${user?.isPro ? 'bg-[#ccff00]' : 'bg-white'}`}>
+              {user?.avatar_url && !imageError ? (
+                <img 
+                  src={user.avatar_url} 
+                  alt="Profile" 
+                  className="h-full w-full object-cover" 
+                  onError={() => setImageError(true)}
+                />
+              ) : (
+                user?.name?.substring(0, 2).toUpperCase()
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
@@ -133,12 +148,12 @@ const ProfilePage = () => {
               </div>
             </div>
           </div>
-          <p className="mt-4 text-[13px] leading-relaxed text-zinc-400 font-medium">{user?.description}</p>
+          <p className="mt-4 text-[13px] leading-relaxed text-zinc-400 font-medium italic">"{user?.description}"</p>
           
-          <div className="mt-5 flex items-center gap-3 flex-wrap">
+          <div className="mt-5 flex items-center gap-3">
             <div className="flex items-center gap-1 bg-black/40 px-3 py-1.5 rounded-xl border border-zinc-800">
               <Star size={12} className="fill-[#ccff00] text-[#ccff00]" />
-              <span className="text-[12px] font-black">{user?.rating.toFixed(1)}</span>
+              <span className="text-[12px] font-black">{Number(user?.rating).toFixed(1)}</span>
             </div>
             <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">{user?.sales} vendas</span>
           </div>
@@ -168,12 +183,19 @@ const ProfilePage = () => {
       {/* Menu de Opções */}
       <div className="px-5 mb-8">
         <div className="rounded-[28px] bg-zinc-900 border border-zinc-800/50 divide-y divide-zinc-800/50 overflow-hidden shadow-xl">
+          <button onClick={() => navigate("/editar-perfil")} className="flex w-full items-center justify-between px-5 py-4 active:bg-zinc-800 transition-colors">
+            <div className="flex items-center gap-3">
+              <UserCircle size={18} className="text-[#ccff00]" />
+              <span className="text-[13px] font-bold text-white uppercase tracking-tight">Editar meu Perfil</span>
+            </div>
+            <ChevronRight size={16} className="text-zinc-700" />
+          </button>
+
           <button onClick={() => navigate("/favoritos")} className="flex w-full items-center justify-between px-5 py-4 active:bg-zinc-800 transition-colors">
-            <span className="text-[13px] font-bold text-white uppercase tracking-tight">Meus favoritos</span>
+            <span className="text-[13px] font-bold text-white uppercase tracking-tight ml-[30px]">Meus favoritos</span>
             <ChevronRight size={16} className="text-zinc-700" />
           </button>
           
-          {/* Mostrar Upgrade apenas para quem não é PRO */}
           {!user?.isPro && (
             <button onClick={() => navigate("/premium")} className="flex w-full items-center justify-between px-5 py-4 bg-[#ccff00]/5 active:bg-[#ccff00]/10 transition-colors">
               <div className="flex items-center gap-3">
@@ -209,7 +231,7 @@ const ProfilePage = () => {
             <p className="text-sm font-bold text-zinc-600 uppercase tracking-tighter mb-4">Seu estoque está vazio</p>
             <button 
               onClick={() => navigate("/anunciar")} 
-              className="rounded-xl bg-white px-8 py-3 text-[11px] font-black text-black uppercase tracking-widest active:scale-95 transition-all"
+              className="rounded-xl bg-[#ccff00] px-8 py-3 text-[11px] font-black text-black uppercase tracking-widest active:scale-95 transition-all shadow-[0_5px_15px_rgba(204,255,0,0.2)]"
             >
               Anunciar Peça
             </button>

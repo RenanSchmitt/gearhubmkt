@@ -12,6 +12,7 @@ const PublicProfile = () => {
   const [vendedor, setVendedor] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [imageError, setImageError] = useState(false); // Fallback para erro na foto
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -37,6 +38,7 @@ const PublicProfile = () => {
           description: profileData?.bio || "Entusiasta da cultura automotiva.",
           rating: profileData?.rating || 5.0,
           sales: profileData?.sales || 0,
+          avatar: profileData?.avatar_url, // BUSCANDO A FOTO AQUI
           isPro: isProUser 
         });
 
@@ -88,9 +90,22 @@ const PublicProfile = () => {
           )}
 
           <div className="flex items-center gap-4">
-            <div className={`flex h-16 w-16 items-center justify-center rounded-2xl text-black text-xl font-black italic shadow-2xl ${vendedor?.isPro ? 'bg-[#ccff00] shadow-[#ccff00]/20' : 'bg-white'}`}>
-              {vendedor?.name?.substring(0, 2).toUpperCase()}
+            {/* AVATAR DO VENDEDOR */}
+            <div className={`relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl overflow-hidden font-black text-xl italic shadow-2xl ${
+              vendedor?.isPro ? 'bg-[#ccff00] text-black shadow-[#ccff00]/20' : 'bg-white text-black'
+            }`}>
+              {vendedor?.avatar && !imageError ? (
+                <img 
+                  src={vendedor.avatar} 
+                  alt={vendedor.name} 
+                  className="h-full w-full object-cover"
+                  onError={() => setImageError(true)}
+                />
+              ) : (
+                <span>{vendedor?.name?.substring(0, 2).toUpperCase()}</span>
+              )}
             </div>
+
             <div className="flex-1 overflow-hidden">
               <div className="flex items-center gap-2">
                 <h2 className="text-[17px] font-black italic uppercase tracking-tight truncate">{vendedor?.name}</h2>
@@ -127,7 +142,7 @@ const PublicProfile = () => {
         </div>
       </div>
 
-      {/* Banner de Direcionamento (Substitui o botão de Chat) */}
+      {/* Banner de Direcionamento */}
       <div className="px-5 mb-10">
         <div className="bg-[#ccff00]/5 border border-[#ccff00]/20 rounded-2xl p-5 flex items-center gap-4">
           <div className="h-12 w-12 bg-[#ccff00] rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(204,255,0,0.3)] shrink-0">
