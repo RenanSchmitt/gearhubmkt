@@ -1,6 +1,6 @@
 import {
   ArrowLeft, Star, MessageCircle, Share2, Heart, ShieldCheck, Zap,
-  Truck, Bell, Edit3, Loader2, Package, Eye, Trash2, Crown
+  Truck, Bell, Edit3, Loader2, Package, Eye, Trash2, Crown, ChevronRight
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useStore } from "@/hooks/useStore";
@@ -18,7 +18,7 @@ const ProductDetail = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  // --- LÓGICA DE EXCLUSÃO COMPLETA ---
+  // --- LÓGICA DE EXCLUSÃO ---
   const handleDeleteProduct = async () => {
     const confirmDelete = window.confirm(
       "TEM CERTEZA? \n\nIsso apagará o anúncio, a foto e todas as conversas vinculadas permanentemente!"
@@ -109,7 +109,6 @@ const ProductDetail = () => {
           sellerInfo = sellerData;
         }
 
-        // Verifica se o status é 'pro' na tabela profiles
         const isSellerPro = sellerInfo?.account_status?.toLowerCase() === 'pro';
 
         setProduct({
@@ -118,7 +117,7 @@ const ProductDetail = () => {
           sellerName: sellerInfo?.nome || sellerInfo?.name || sellerInfo?.username || "Piloto GearHub",
           sellerRating: sellerInfo?.rating || "5.0",
           sellerSales: sellerInfo?.sales || "0",
-          isSellerPro: isSellerPro, // Nova flag de verificação
+          isSellerPro: isSellerPro,
           title: productData.title || "Peça sem título",
           price: Number(productData.price) || 0,
           image: productData.image || "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=800&q=80",
@@ -147,7 +146,7 @@ const ProductDetail = () => {
   );
 
   if (!product) return (
-    <div className="min-h-screen bg-black flex items-center justify-center text-white font-black italic uppercase p-10">
+    <div className="min-h-screen bg-black flex items-center justify-center text-white font-black italic uppercase p-10 text-center">
       Anúncio não encontrado
     </div>
   );
@@ -163,7 +162,6 @@ const ProductDetail = () => {
           <ArrowLeft size={20} />
         </button>
 
-        {/* Badge PRO no Header */}
         {product.isSellerPro && (
           <div className="flex items-center gap-1.5 bg-[#ccff00] px-3 py-1.5 rounded-full shadow-[0_0_20px_rgba(204,255,0,0.3)] animate-pulse">
             <Crown size={12} className="text-black fill-black" />
@@ -193,7 +191,6 @@ const ProductDetail = () => {
                 {product.title}
               </h1>
             </div>
-            {/* Badge sutil ao lado do título */}
             {product.isSellerPro && (
               <div className="bg-[#ccff00]/10 border border-[#ccff00]/20 p-2 rounded-xl">
                 <ShieldCheck size={20} className="text-[#ccff00]" />
@@ -303,15 +300,22 @@ const ProductDetail = () => {
           )}
         </div>
 
-        {/* CARD DO VENDEDOR */}
+        {/* CARD DO VENDEDOR (COM LINK PARA PERFIL PÚBLICO) */}
         {!isOwner && (
-          <div className={`flex w-full items-center gap-4 rounded-[32px] bg-zinc-900 p-6 border transition-all ${product.isSellerPro ? 'border-[#ccff00]/30 shadow-[0_0_30px_rgba(204,255,0,0.05)]' : 'border-white/5'}`}>
-            <div className={`flex h-14 w-14 items-center justify-center rounded-2xl font-black text-xl italic ${product.isSellerPro ? 'bg-[#ccff00] text-black shadow-[0_0_15px_rgba(204,255,0,0.3)]' : 'bg-zinc-800 text-white'}`}>
+          <div 
+            onClick={() => navigate(`/vendedor/${product.seller_id}`)}
+            className={`flex w-full items-center gap-4 rounded-[32px] bg-zinc-900 p-6 border transition-all cursor-pointer active:scale-[0.98] ${
+              product.isSellerPro ? 'border-[#ccff00]/30 shadow-[0_0_30px_rgba(204,255,0,0.05)]' : 'border-white/5'
+            }`}
+          >
+            <div className={`flex h-14 w-14 items-center justify-center rounded-2xl font-black text-xl italic ${
+              product.isSellerPro ? 'bg-[#ccff00] text-black shadow-[0_0_15px_rgba(204,255,0,0.3)]' : 'bg-zinc-800 text-white'
+            }`}>
               {product.sellerName.charAt(0).toUpperCase()}
             </div>
-            <div className="flex-1">
+            <div className="flex-1 overflow-hidden">
               <div className="flex items-center gap-2">
-                <p className="text-[16px] font-black text-white uppercase italic tracking-tight">{product.sellerName}</p>
+                <p className="text-[16px] font-black text-white uppercase italic tracking-tight truncate">{product.sellerName}</p>
                 {product.isSellerPro && <Crown size={14} className="text-[#ccff00] fill-[#ccff00]" />}
               </div>
               <div className="flex items-center gap-3 mt-1.5">
@@ -319,9 +323,10 @@ const ProductDetail = () => {
                   <Star size={12} className="fill-[#ccff00]" />
                   <span className="text-[12px] font-black">{product.sellerRating}</span>
                 </div>
-                <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-tighter">• {product.sellerSales} vendas</span>
+                <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-tighter truncate">• {product.sellerSales} vendas</span>
               </div>
             </div>
+            <ChevronRight size={20} className="text-zinc-700" />
           </div>
         )}
       </div>

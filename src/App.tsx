@@ -1,9 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { HashRouter as Router, Route, Routes } from "react-router-dom"; // Trocamos para HashRouter
+import { HashRouter as Router, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { StoreProvider } from "@/hooks/useStore";
 import BottomNav from "@/components/BottomNav";
+
+// Imports das Páginas
 import HomePage from "./pages/HomePage";
 import ProductDetail from "./pages/ProductDetail";
 import FavoritesPage from "./pages/FavoritesPage";
@@ -11,10 +13,10 @@ import AdvertisePage from "./pages/AdvertisePage";
 import EditAdvertisePage from "./pages/EditAdvertisePage"; 
 import ChatPage from "./pages/ChatPage";
 import ProfilePage from "./pages/ProfilePage";
+import PublicProfile from "./pages/PublicProfile"; // Nova página de perfil público
 import PremiumPage from "./pages/PremiumPage";
 import LoginPage from "./pages/LoginPage";
 import PartRequestPage from "./pages/PartRequestPage";
-import SellerStorePage from "./pages/SellerStorePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,7 +27,6 @@ const App = () => (
       <StoreProvider>
         <Sonner position="top-center" expand={false} richColors />
         
-        {/* Removemos o basename e usamos o Router (HashRouter) */}
         <Router>
           <div className="mx-auto max-w-md min-h-screen relative bg-black">
             <Routes>
@@ -44,10 +45,10 @@ const App = () => (
               
               {/* Perfil e Negócios */}
               <Route path="/perfil" element={<ProfilePage />} />
+              <Route path="/vendedor/:vendedorId" element={<PublicProfile />} /> {/* Rota Atualizada */}
               <Route path="/premium" element={<PremiumPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/procurar-peca" element={<PartRequestPage />} />
-              <Route path="/loja/:sellerId" element={<SellerStorePage />} />
               
               {/* Fallback 404 */}
               <Route path="*" element={<NotFound />} />
