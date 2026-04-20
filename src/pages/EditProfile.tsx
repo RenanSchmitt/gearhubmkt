@@ -59,36 +59,53 @@ const EditProfile = () => {
     }
   };
 
+  // FUNÇÃO AUXILIAR: Extrai o nome do arquivo da URL para deletar no Bucket
+  const getFileNameFromUrl = (url: string) => {
+    if (!url || url.includes('unsplash')) return null;
+    const parts = url.split('/');
+    const fileName = parts[parts.length - 1].split('?')[0];
+    return fileName;
+  };
+
   const handleUploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const file = event.target.files?.[0];
       if (!file) return;
 
-      const previewUrl = URL.createObjectURL(file);
-      setProfile(prev => ({ ...prev, avatar_url: previewUrl }));
-      setImageLoadError(false);
-      
       setSaving(true);
 
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) return;
 
+      // 1. LIMPEZA: Deleta a foto antiga do storage se ela existir
+      const oldFileName = getFileNameFromUrl(profile.avatar_url);
+      if (oldFileName) {
+        await supabase.storage
+          .from('profile_photo')
+          .remove([oldFileName]);
+      }
+
+      // 2. PREPARAÇÃO: Novo nome com timestamp para evitar conflito de cache
       const fileExt = file.name.split('.').pop();
       const fileName = `${authUser.id}-${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
 
+      // 3. UPLOAD: Envia o novo arquivo
       const { error: uploadError } = await supabase.storage
         .from('profile_photo')
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
+      // 4. URL: Obtém o link público
       const { data } = supabase.storage
         .from('profile_photo')
         .getPublicUrl(filePath);
 
+      // 5. UPDATE: Atualiza o estado e reseta erros de carregamento
       setProfile(prev => ({ ...prev, avatar_url: data.publicUrl }));
-      toast.success("Foto carregada!");
+      setImageLoadError(false);
+      toast.success("Foto atualizada! 🏎️");
 
     } catch (error: any) {
       console.error(error);
@@ -123,7 +140,6 @@ const EditProfile = () => {
 
       toast.success("PERFIL ATUALIZADO! 🏁");
       
-      // O segredo para não travar: aguarda um pouco e força a navegação
       setTimeout(() => {
         navigate("/perfil");
       }, 800);
@@ -144,15 +160,15 @@ const EditProfile = () => {
 
   return (
     <div className="min-h-screen bg-black text-white font-sans pb-20">
-      <div className="px-6 pt-10 flex items-center justify-between mb-8">
-        <button onClick={() => navigate("/perfil")} className="h-12 w-12 bg-zinc-900 rounded-2xl flex items-center justify-center border border-white/5">
+      <div className="px-6 pt-10 flex items-center justify-between mb-8 border-b border-white/5 pb-6">
+        <button onClick={() => navigate("/perfil")} className="h-12 w-12 bg-zinc-900 rounded-2xl flex items-center justify-center border border-white/5 active:scale-90 transition-all">
           <ArrowLeft size={20} />
         </button>
         <h1 className="text-xl font-black italic uppercase tracking-tighter text-[#ccff00]">Editar Perfil</h1>
         <button 
           onClick={handleSave}
           disabled={saving}
-          className="h-12 w-12 bg-[#ccff00] rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(204,255,0,0.3)] disabled:opacity-50"
+          className="h-12 w-12 bg-[#ccff00] rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(204,255,0,0.3)] disabled:opacity-50 active:scale-90 transition-all"
         >
           {saving ? <Loader2 size={20} className="animate-spin text-black" /> : <Check size={20} className="text-black" />}
         </button>
@@ -161,7 +177,7 @@ const EditProfile = () => {
       <div className="px-6 space-y-8">
         <div className="flex flex-col items-center">
           <div className="relative">
-            <div className="h-32 w-32 rounded-[40px] overflow-hidden border-4 border-zinc-900 bg-zinc-800 flex items-center justify-center shadow-2xl">
+            <div className={`h-32 w-32 rounded-[40px] overflow-hidden border-4 bg-zinc-800 flex items-center justify-center shadow-2xl transition-all ${saving ? 'opacity-50 border-zinc-700' : 'border-zinc-900'}`}>
               {profile.avatar_url && !imageLoadError ? (
                 <img 
                   src={profile.avatar_url} 
@@ -172,10 +188,15 @@ const EditProfile = () => {
               ) : (
                 <User size={48} className="text-zinc-700" />
               )}
+              {saving && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Loader2 size={24} className="animate-spin text-[#ccff00]" />
+                </div>
+              )}
             </div>
             <button 
               onClick={() => fileInputRef.current?.click()}
-              className="absolute -bottom-1 -right-1 h-11 w-11 bg-[#ccff00] rounded-2xl flex items-center justify-center border-4 border-black"
+              className="absolute -bottom-1 -right-1 h-11 w-11 bg-[#ccff00] rounded-2xl flex items-center justify-center border-4 border-black shadow-xl active:scale-90 transition-all"
             >
               <Camera size={18} className="text-black" />
             </button>
@@ -191,7 +212,7 @@ const EditProfile = () => {
               type="text" 
               value={profile.nome} 
               onChange={(e) => setProfile({...profile, nome: e.target.value})} 
-              className="w-full bg-zinc-900/50 border border-zinc-800 rounded-2xl py-5 px-6 text-sm font-bold outline-none focus:border-[#ccff00]/50 uppercase" 
+              className="w-full bg-zinc-900/50 border border-zinc-800 rounded-2xl py-5 px-6 text-sm font-bold outline-none focus:border-[#ccff00]/50 uppercase transition-all" 
             />
           </div>
 
@@ -201,7 +222,7 @@ const EditProfile = () => {
               rows={3} 
               value={profile.bio} 
               onChange={(e) => setProfile({...profile, bio: e.target.value})} 
-              className="w-full bg-zinc-900/50 border border-zinc-800 rounded-2xl py-5 px-6 text-sm font-bold outline-none focus:border-[#ccff00]/50 resize-none" 
+              className="w-full bg-zinc-900/50 border border-zinc-800 rounded-2xl py-5 px-6 text-sm font-bold outline-none focus:border-[#ccff00]/50 resize-none transition-all" 
             />
           </div>
 
@@ -212,7 +233,7 @@ const EditProfile = () => {
                 type="text" 
                 value={profile.cidade} 
                 onChange={(e) => setProfile({...profile, cidade: e.target.value})} 
-                className="w-full bg-zinc-900/50 border border-zinc-800 rounded-2xl py-5 px-6 text-sm font-bold outline-none" 
+                className="w-full bg-zinc-900/50 border border-zinc-800 rounded-2xl py-5 px-6 text-sm font-bold outline-none focus:border-[#ccff00]/50 transition-all" 
               />
             </div>
             <div className="space-y-2">
@@ -222,7 +243,7 @@ const EditProfile = () => {
                 maxLength={2} 
                 value={profile.estado} 
                 onChange={(e) => setProfile({...profile, estado: e.target.value.toUpperCase()})} 
-                className="w-full bg-zinc-900/50 border border-zinc-800 rounded-2xl py-5 px-6 text-sm font-bold outline-none" 
+                className="w-full bg-zinc-900/50 border border-zinc-800 rounded-2xl py-5 px-6 text-sm font-bold outline-none focus:border-[#ccff00]/50 text-center transition-all" 
               />
             </div>
           </div>
@@ -235,7 +256,8 @@ const EditProfile = () => {
                 type="text" 
                 value={profile.telefone} 
                 onChange={(e) => setProfile({...profile, telefone: e.target.value})} 
-                className="w-full bg-zinc-900/50 border border-zinc-800 rounded-2xl py-5 pl-14 pr-6 text-sm font-bold outline-none focus:border-[#ccff00]/50" 
+                className="w-full bg-zinc-900/50 border border-zinc-800 rounded-2xl py-5 pl-14 pr-6 text-sm font-bold outline-none focus:border-[#ccff00]/50 transition-all" 
+                placeholder="(00) 00000-0000"
               />
             </div>
           </div>
